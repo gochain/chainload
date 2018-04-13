@@ -97,6 +97,7 @@ func setup() ([]*Node, error) {
 				Number:       i,
 				Client:       client,
 				AccountStore: as,
+				SeedCh : make(chan SeedReq),
 			})
 		}
 	}
@@ -116,7 +117,6 @@ func run(nodes []*Node) error {
 		}
 	}()
 
-	seedCh := make(chan SeedReq)
 	var wg sync.WaitGroup
 	var seeders int
 	for _, node := range nodes {
@@ -131,7 +131,7 @@ func run(nodes []*Node) error {
 		}
 		wg.Add(1)
 		seeders++
-		go s.Run(ctx, seedCh, wg.Done)
+		go s.Run(ctx, wg.Done)
 	}
 	if ctx.Err() != nil {
 		return ctx.Err()
@@ -158,11 +158,11 @@ func run(nodes []*Node) error {
 	wg.Add(config.senders)
 	txs := make(chan struct{}, config.tps)
 
-	for n := 0; n < config.senders; n++ {
+	for num := 0; num < config.senders; num++ {
+		node := num %len(nodes)
 		s := Sender{
-			Number: n,
-			Node:   nodes[n%len(nodes)],
-			SeedCh: seedCh,
+			Number: num,
+			Node:   nodes[node],
 		}
 		go s.Send(ctx, txs, wg.Done)
 	}

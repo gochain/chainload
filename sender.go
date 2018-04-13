@@ -17,7 +17,6 @@ import (
 type Sender struct {
 	*Node
 	Number int
-	SeedCh chan<- SeedReq
 
 	acct     *accounts.Account
 	recv     []common.Address

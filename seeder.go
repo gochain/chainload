@@ -33,7 +33,7 @@ type SeedReq struct {
 	Resp chan<- error
 }
 
-func (s *Seeder) Run(ctx context.Context, seedCh chan SeedReq, done func()) {
+func (s *Seeder) Run(ctx context.Context, done func()) {
 	defer done()
 	defer s.transition(nil)
 	s.transition(seederSeedState)
@@ -71,7 +71,7 @@ func (s *Seeder) Run(ctx context.Context, seedCh chan SeedReq, done func()) {
 		select {
 		case <-ctx.Done():
 			return
-		case seed := <-seedCh:
+		case seed := <-s.SeedCh:
 			// Seed the sender with funds.
 			tx := types.NewTransaction(s.nonce, seed.Addr, amt, config.gas, gasPrice, nil)
 			t := time.Now()
