@@ -8,13 +8,13 @@ import (
 )
 
 var (
-	latestBlockNumberTimer = metrics.GetOrRegisterTimer("latestBlockNumber", nil)
-	sendTxTimer            = metrics.GetOrRegisterTimer("sendTx", nil)
-	sendTxErrMeter         = metrics.GetOrRegisterMeter("sendTx/err", nil)
-	signTxTimer            = metrics.GetOrRegisterTimer("signTx", nil)
-	suggestGasPriceTimer   = metrics.GetOrRegisterTimer("suggestGasPrice", nil)
-	pendingBalanceAtTimer  = metrics.GetOrRegisterTimer("pendingBalanceAt", nil)
-	pendingNonceAtTimer    = metrics.GetOrRegisterTimer("pendingNonceAt", nil)
+	latestBlockNumberTimer = metrics.GetOrRegisterTimer("timer/latestBlockNumber", nil)
+	sendTxTimer            = metrics.GetOrRegisterTimer("timer/sendTx", nil)
+	sendTxErrMeter         = metrics.GetOrRegisterMeter("meter/sendTx/err", nil)
+	signTxTimer            = metrics.GetOrRegisterTimer("timer/signTx", nil)
+	suggestGasPriceTimer   = metrics.GetOrRegisterTimer("timer/suggestGasPrice", nil)
+	pendingBalanceAtTimer  = metrics.GetOrRegisterTimer("timer/pendingBalanceAt", nil)
+	pendingNonceAtTimer    = metrics.GetOrRegisterTimer("timer/pendingNonceAt", nil)
 )
 
 // Report holds statistics for a stretch of time.

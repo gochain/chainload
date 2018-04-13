@@ -21,13 +21,13 @@ func (s *stateTracker) transition(to state) state {
 }
 
 var (
-	seederCollectState     state = metrics.GetOrRegisterCounter("seeder/state/collect", nil)
-	seederEnsureFundsState state = metrics.GetOrRegisterCounter("seeder/state/ensureFunds", nil)
-	seederSeedState        state = metrics.GetOrRegisterCounter("seeder/state/seed", nil)
-	seederUpdateNonceState state = metrics.GetOrRegisterCounter("seeder/state/updateNonce", nil)
+	seederCollectState     state = metrics.GetOrRegisterCounter("state/seeder/collect", nil)
+	seederEnsureFundsState state = metrics.GetOrRegisterCounter("state/seeder/ensureFunds", nil)
+	seederSeedState        state = metrics.GetOrRegisterCounter("state/seeder/seed", nil)
+	seederUpdateNonceState state = metrics.GetOrRegisterCounter("state/seeder/updateNonce", nil)
 
-	senderAssignState    state = metrics.GetOrRegisterCounter("sender/state/assign", nil)
-	senderUpdateGasState state = metrics.GetOrRegisterCounter("sender/state/updateGas", nil)
-	senderSendState      state = metrics.GetOrRegisterCounter("sender/state/send", nil)
-	senderSeedState      state = metrics.GetOrRegisterCounter("sender/state/seed", nil)
+	senderAssignState    state = metrics.GetOrRegisterCounter("state/sender/assign", nil)
+	senderUpdateGasState state = metrics.GetOrRegisterCounter("state/sender/updateGas", nil)
+	senderSendState      state = metrics.GetOrRegisterCounter("state/sender/send", nil)
+	senderSeedState      state = metrics.GetOrRegisterCounter("state/sender/seed", nil)
 )

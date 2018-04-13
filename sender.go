@@ -28,7 +28,7 @@ type Sender struct {
 }
 
 func (s *Sender) String() string {
-	return fmt.Sprintf("node=%d sender=%d acct=%q", s.Node.Number, s.Number, s.acct.Address.Hex())
+	return fmt.Sprintf("node=%d sender=%d acct=%s", s.Node.Number, s.Number, s.acct.Address.Hex())
 }
 
 // assignAcct assigns an account from AccountStore, refunding and replacing acct
