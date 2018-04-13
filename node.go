@@ -15,6 +15,7 @@ type Node struct {
 	Number int
 	*ethclient.Client
 	*AccountStore
+	SeedCh chan SeedReq
 }
 
 func (n *Node) refund(ctx context.Context, acct accounts.Account, nonce uint64, seed common.Address) (uint64, error) {
