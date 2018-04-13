@@ -73,7 +73,11 @@ func setup() ([]*Node, error) {
 		return nil, errors.New("illegal input: non-empty stdin")
 	}
 	flag.Parse()
-	if len(flag.Args()) > 0 {
+	if args := flag.Args(); len(args) > 0 {
+		if len(args) == 1 && args[0] == "version" {
+			fmt.Fprintln(os.Stdout, "chainload version:", Version)
+			os.Exit(0)
+		}
 		return nil, fmt.Errorf("illegal extra arguments: %v", flag.Args())
 	}
 	if config.senders == 0 {
