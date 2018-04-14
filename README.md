@@ -24,6 +24,8 @@ Usage of chainload:
     	id (default 1234)
   -pass string
     	passphrase to unlock accounts (default "#go@chain42")
+  -pprof string
+        pprof addr (default ":6060")
   -senders int
     	total number of concurrent senders/accounts - defaults to 1/10 of tps
   -tps int

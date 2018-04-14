@@ -22,15 +22,16 @@ import (
 )
 
 type Config struct {
-	id      uint64
-	urlsCSV string
-	tps     int
-	senders int
-	dur     time.Duration
-	pass    string
-	gas     uint64
-	amount  *big.Int
-	verbose bool
+	id        uint64
+	urlsCSV   string
+	tps       int
+	senders   int
+	dur       time.Duration
+	pass      string
+	gas       uint64
+	amount    *big.Int
+	pprofAddr string
+	verbose   bool
 }
 
 var config = Config{}
@@ -44,20 +45,23 @@ func init() {
 	flag.StringVar(&config.pass, "pass", "#go@chain42", "passphrase to unlock accounts")
 	flag.Uint64Var(&config.gas, "gas", 200000, "gas")
 	config.amount = new(big.Int).SetUint64(1)
+	flag.StringVar(&config.pprofAddr, "pprof", ":6060", "pprof addr")
 	flag.BoolVar(&config.verbose, "v", false, "verbose logging")
 }
 
 func main() {
-	// pprof
-	runtime.SetBlockProfileRate(1000000)
-	runtime.SetMutexProfileFraction(1000000)
-	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
 	nodes, err := setup()
 	if err != nil {
 		log.Fatalf("Failed to set up\terr=%q\n", err)
 	}
+
+	// pprof
+	runtime.SetBlockProfileRate(1000000)
+	runtime.SetMutexProfileFraction(1000000)
+	go func() {
+		log.Println(http.ListenAndServe(config.pprofAddr, nil))
+	}()
+
 	log.Printf("Starting execution\tid=%d urls=%s tps=%d senders=%d duration=%s gas=%d amount=%d\n",
 		config.id, config.urlsCSV, config.tps, config.senders, config.dur, config.gas, config.amount)
 	err = run(nodes)
@@ -97,7 +101,7 @@ func setup() ([]*Node, error) {
 				Number:       i,
 				Client:       client,
 				AccountStore: as,
-				SeedCh : make(chan SeedReq),
+				SeedCh:       make(chan SeedReq),
 			})
 		}
 	}
@@ -159,7 +163,7 @@ func run(nodes []*Node) error {
 	txs := make(chan struct{}, config.tps)
 
 	for num := 0; num < config.senders; num++ {
-		node := num %len(nodes)
+		node := num % len(nodes)
 		s := Sender{
 			Number: num,
 			Node:   nodes[node],
