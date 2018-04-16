@@ -1,4 +1,6 @@
-# chainload
+# ChainLoad
+
+[![CircleCI](https://circleci.com/gh/gochain-io/chainload.svg?style=svg)](https://circleci.com/gh/gochain-io/chainload)
 
 `chainload` is a GoChain/Ethereum blockchain load generator.
 
@@ -35,10 +37,16 @@ Usage of chainload:
   -v	verbose logging
 ```
 
-Example:
+Examples:
 
 ```
 chainload -id 9876 -urls http://node1:8545,http://node2:8545 -tps 100 -senders 50 -dur 5m
+```
+
+```
+chainload version
+> chainload version: 0.0.1
+
 ```
 
 ## How it works
