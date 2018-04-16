@@ -1,4 +1,4 @@
-.PHONY: dep build test docker
+.PHONY: dep build test docker release
 
 dep:
 	dep ensure --vendor-only
@@ -11,3 +11,6 @@ test:
 
 docker:
 	docker build -t gochain/chainload .
+
+release: docker
+	./release.sh
