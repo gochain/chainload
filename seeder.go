@@ -91,6 +91,7 @@ func (s *Seeder) Run(ctx context.Context, done func()) {
 				sendTxErrMeter.Mark(1)
 				log.Printf("Failed to send seed tx\t%s err=%q\n", s, err)
 				seed.Resp <- err
+				var wait time.Duration
 				if msg := err.Error(); nonceErr(msg) || knownTxErr(msg) {
 					old := s.nonce
 					s.transition(seederUpdateNonceState)
@@ -104,10 +105,22 @@ func (s *Seeder) Run(ctx context.Context, done func()) {
 						return
 					}
 					log.Printf("Updated nonce\t%s old=%d new=%d\n", s, old, s.nonce)
+				} else if msg == "transaction pool limit reached" {
+					wait = 5 * time.Minute
 				} else if lowFundsErr(msg) {
 					s.transition(seederCollectState)
 					if c, err := s.collect(ctx, amt.Uint64()); err != nil {
 						log.Printf("Refund collection failed\t%s collected=%d err=%q\n", s, c, err)
+					}
+				} else {
+					wait = 30 * time.Second
+				}
+				if wait != 0 {
+					log.Printf("Pausing seeder\t%s pause=%s err=%q\n", s, wait, err)
+					select {
+					case <-time.After(wait):
+					case <-ctx.Done():
+						return
 					}
 				}
 			} else {
