@@ -149,7 +149,7 @@ func run(nodes []*Node) error {
 	}
 	log.Printf("Started seeders\tcount=%d\n", seeders)
 
-	sendBlock, err := waitForBlock(ctx, nodes[0].Client, 0)
+	sendBlock, err := waitBlocks(ctx, nodes[0].Client, 0)
 	if err != nil {
 		// Cancelled.
 		return err
@@ -222,7 +222,8 @@ loop:
 	return nil
 }
 
-func waitForBlock(ctx context.Context, client *ethclient.Client, blockNum uint64) (uint64, error) {
+func waitBlocks(ctx context.Context, client *ethclient.Client, blocks uint64) (uint64, error) {
+	var first *uint64
 	for {
 		t := time.Now()
 		big, err := client.LatestBlockNumber(ctx)
@@ -234,7 +235,10 @@ func waitForBlock(ctx context.Context, client *ethclient.Client, blockNum uint64
 			log.Printf("Failed to get block number\terr=%q\n", err)
 		} else {
 			current := big.Uint64()
-			if current >= blockNum {
+			if first == nil {
+				first = &current
+			}
+			if current >= *first+blocks {
 				return current, nil
 			}
 		}
