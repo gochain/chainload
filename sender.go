@@ -256,7 +256,7 @@ func (s *Sender) send(ctx context.Context) {
 		return
 	} else if msg == "transaction pool limit reached" {
 		print = true
-		wait = 5 * time.Minute
+		wait = jitter(time.Minute, 20)
 	} else if knownTxErr(msg) || lowFundsErr(msg) {
 		log.Printf("Abandoning account\t%s err=%s\n", s, msg)
 		s.transition(senderAssignState)
@@ -265,7 +265,7 @@ func (s *Sender) send(ctx context.Context) {
 		return
 	} else {
 		print = true
-		wait = 1 * time.Minute
+		wait = jitter(30*time.Second, 10)
 	}
 	if wait == 0 && (print || config.verbose) {
 		log.Printf("Failed to send\t%s err=%q\n", s, err)
