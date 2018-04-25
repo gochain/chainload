@@ -79,29 +79,30 @@ func (s *Sender) assignAcct(ctx context.Context) {
 			return
 		}
 	}
-	log.Printf("Assigned sender account\t%s\n", s)
 
 	var pb *big.Int
 	if !bo.doTimed(ctx, pendingBalanceAtTimer, func() (err error) {
 		pb, err = s.PendingBalanceAt(ctx, s.acct.Address)
 		if err != nil {
-			err = fmt.Errorf("failed to get sender balance\t%s balance=%d", s, pb)
+			err = fmt.Errorf("failed to get sender balance\t%s err=%q", s, err)
 		}
 		return
 	}) {
 		return
 	}
 	bal := pb.Uint64()
-	log.Printf("Got sender balance\t%s balance=%d\n", s, bal)
+
+	log.Printf("Assigned sender account\t%s balance=%d\n", s, bal)
 
 	fee := new(big.Int).Mul(s.gasPrice, new(big.Int).SetUint64(config.gas))
 	amt := fee.Mul(fee, new(big.Int).SetUint64(1000)).Uint64()
 	if bal < amt {
+		amt = amt - bal
 		s.transition(senderSeedState)
 		if !bo.do(ctx, func() error {
-			err := s.requestSeed(ctx, amt-bal)
+			err := s.requestSeed(ctx, amt)
 			if err != nil {
-				return fmt.Errorf("failed to seed account\t%s", s)
+				return fmt.Errorf("failed to seed account\t%s err=%q", s, err)
 			}
 			return nil
 		}) {
@@ -110,20 +111,22 @@ func (s *Sender) assignAcct(ctx context.Context) {
 		if _, err := waitBlocks(ctx, s.Client, 5); err != nil {
 			return
 		}
-		log.Printf("Seeded account\t%s\n", s)
+		log.Printf("Seeded account\t%s seed=%d balance=%d\n", s, amt, amt+bal)
 		s.transition(senderAssignState)
 	}
 
 	if !bo.do(ctx, func() error {
 		s.recv = s.AccountStore.NextRecv(s.acct.Address, rand.Intn(10)+1)
 		if len(s.recv) == 0 {
-			return fmt.Errorf("failed to assig sender receivers\t%s receivers=%v", s, receivers(s.recv))
+			return fmt.Errorf("failed to assign sender receivers\t%s receivers=%v", s, receivers(s.recv))
 		}
 		return nil
 	}) {
 		return
 	}
-	log.Printf("Assigned sender receivers\t%s receivers=%s\n", s, receivers(s.recv))
+	if config.verbose {
+		log.Printf("Assigned sender receivers\t%s receivers=%s\n", s, receivers(s.recv))
+	}
 }
 
 type receivers []common.Address
