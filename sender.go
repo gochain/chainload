@@ -107,6 +107,9 @@ func (s *Sender) assignAcct(ctx context.Context) {
 		}) {
 			return
 		}
+		if _, err := waitBlocks(ctx, s.Client, 5); err != nil {
+			return
+		}
 		log.Printf("Seeded account\t%s\n", s)
 		s.transition(senderAssignState)
 	}
