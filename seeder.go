@@ -106,14 +106,14 @@ func (s *Seeder) Run(ctx context.Context, done func()) {
 					}
 					log.Printf("Updated nonce\t%s old=%d new=%d\n", s, old, s.nonce)
 				} else if msg == "transaction pool limit reached" {
-					wait = jitter(time.Minute, 20)
+					wait = jitter(time.Minute, 80)
 				} else if lowFundsErr(msg) {
 					s.transition(seederCollectState)
 					if c, err := s.collect(ctx, amt.Uint64()); err != nil {
 						log.Printf("Refund collection failed\t%s collected=%d err=%q\n", s, c, err)
 					}
 				} else {
-					wait = jitter(30*time.Second, 10)
+					wait = jitter(30*time.Second, 50)
 				}
 				if wait != 0 {
 					log.Printf("Pausing seeder\t%s pause=%s err=%q\n", s, wait, err)
