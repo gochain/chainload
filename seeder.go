@@ -53,8 +53,9 @@ func (s *Seeder) Run(ctx context.Context, done func()) {
 		}) {
 			return
 		}
+		// Pay double.
 		gasPrice.Add(gasPrice, gasPrice)
-		fee := new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(config.gas))
+		fee := new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(jitter(config.gas, 10)))
 		amt := fee.Mul(fee, new(big.Int).SetUint64(1000))
 		// Ensure we have enough funds to seed.
 		if !bo.do(ctx, func() (err error) {
@@ -73,7 +74,7 @@ func (s *Seeder) Run(ctx context.Context, done func()) {
 			return
 		case seed := <-s.SeedCh:
 			// Seed the sender with funds.
-			tx := types.NewTransaction(s.nonce, seed.Addr, amt, config.gas, gasPrice, nil)
+			tx := types.NewTransaction(s.nonce, seed.Addr, amt, jitter(config.gas, 10), gasPrice, nil)
 			t := time.Now()
 			tx, err := s.SignTx(*s.acct, tx)
 			if err != nil {
@@ -106,14 +107,14 @@ func (s *Seeder) Run(ctx context.Context, done func()) {
 					}
 					log.Printf("Updated nonce\t%s old=%d new=%d\n", s, old, s.nonce)
 				} else if msg == "transaction pool limit reached" {
-					wait = jitter(time.Minute, 80)
+					wait = jitterDur(time.Minute, 80)
 				} else if lowFundsErr(msg) {
 					s.transition(seederCollectState)
 					if c, err := s.collect(ctx, amt.Uint64()); err != nil {
 						log.Printf("Refund collection failed\t%s collected=%d err=%q\n", s, c, err)
 					}
 				} else {
-					wait = jitter(30*time.Second, 50)
+					wait = jitterDur(30*time.Second, 50)
 				}
 				if wait != 0 {
 					log.Printf("Pausing seeder\t%s pause=%s err=%q\n", s, wait, err)

@@ -18,16 +18,18 @@ flags:
 chainload --help
 
 Usage of chainload:
+  -amount uint
+    	tx amount (approximate) (default 10)
   -dur duration
     	duration to run - omit for unlimited
   -gas uint
-    	gas (default 200000)
+    	gas (approximate) (default 200000)
   -id uint
     	id (default 1234)
   -pass string
     	passphrase to unlock accounts (default "#go@chain42")
   -pprof string
-        pprof addr (default ":6060")
+    	pprof addr (default ":6060")
   -senders int
     	total number of concurrent senders/accounts - defaults to 1/10 of tps
   -tps int
@@ -56,7 +58,8 @@ be pre-existing. One seeder is started per url, to continually re-claim
 funds from other accounts, and to seed funds to senders. Senders may
 reuse pre-existing accounts or create new ones. Senders continually send
 txs to a set of receivers, while periodically cycling out the sender and
-receiver addresses.
+receiver addresses. The `gas` and `amount` of each transaction varies
+randomly from the suggested approximate values.
 
 ## Problems
 
