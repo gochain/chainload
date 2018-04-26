@@ -29,7 +29,7 @@ type Config struct {
 	dur       time.Duration
 	pass      string
 	gas       uint64
-	amount    *big.Int
+	amount    uint64
 	pprofAddr string
 	verbose   bool
 }
@@ -43,8 +43,8 @@ func init() {
 	flag.IntVar(&config.senders, "senders", 0, "total number of concurrent senders/accounts - defaults to 1/10 of tps")
 	flag.DurationVar(&config.dur, "dur", 0, "duration to run - omit for unlimited")
 	flag.StringVar(&config.pass, "pass", "#go@chain42", "passphrase to unlock accounts")
-	flag.Uint64Var(&config.gas, "gas", 200000, "gas")
-	config.amount = new(big.Int).SetUint64(1)
+	flag.Uint64Var(&config.gas, "gas", 200000, "gas (approximate)")
+	flag.Uint64Var(&config.amount, "amount", 10, "tx amount (approximate)")
 	flag.StringVar(&config.pprofAddr, "pprof", ":6060", "pprof addr")
 	flag.BoolVar(&config.verbose, "v", false, "verbose logging")
 }

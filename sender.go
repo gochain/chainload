@@ -220,8 +220,8 @@ func (s *Sender) send(ctx context.Context) {
 
 	gasPrice := new(big.Int).Div(s.gasPrice, new(big.Int).SetInt64(rand.Int63n(5)+5))
 	gasPrice.Add(s.gasPrice, gasPrice)
-
-	tx := types.NewTransaction(s.nonce, recv, config.amount, config.gas, gasPrice, nil)
+	amount := new(big.Int).SetUint64(jitter(config.amount, 90))
+	tx := types.NewTransaction(s.nonce, recv, amount, jitter(config.gas, 10), gasPrice, nil)
 	t := time.Now()
 	tx, err := s.AccountStore.SignTx(*s.acct, tx)
 	if err != nil {
@@ -262,7 +262,7 @@ func (s *Sender) send(ctx context.Context) {
 		return
 	} else if msg == "transaction pool limit reached" {
 		print = true
-		wait = jitter(time.Minute, 80)
+		wait = jitterDur(time.Minute, 80)
 	} else if knownTxErr(msg) || lowFundsErr(msg) {
 		log.Printf("Abandoning account\t%s err=%s\n", s, msg)
 		s.transition(senderAssignState)
@@ -271,7 +271,7 @@ func (s *Sender) send(ctx context.Context) {
 		return
 	} else {
 		print = true
-		wait = jitter(30*time.Second, 50)
+		wait = jitterDur(30*time.Second, 50)
 	}
 	if wait == 0 && (print || config.verbose) {
 		log.Printf("Failed to send\t%s err=%q\n", s, err)

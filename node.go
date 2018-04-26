@@ -33,13 +33,14 @@ func (n *Node) refund(ctx context.Context, acct accounts.Account, nonce uint64, 
 	}
 	suggestGasPriceTimer.UpdateSince(t)
 
+	gas := jitter(config.gas, 10)
 	var amount big.Int
-	amount.Mul(new(big.Int).SetUint64(config.gas), gasPrice)
+	amount.Mul(new(big.Int).SetUint64(gas), gasPrice)
 	amount.Sub(bal, &amount)
 	if amount.Cmp(new(big.Int)) < 1 {
 		return 0, nil
 	}
-	tx := types.NewTransaction(nonce, seed, &amount, config.gas, gasPrice, nil)
+	tx := types.NewTransaction(nonce, seed, &amount, gas, gasPrice, nil)
 
 	t = time.Now()
 	tx, err = n.SignTx(acct, tx)
