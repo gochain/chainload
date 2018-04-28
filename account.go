@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"math/big"
 	"math/rand"
 	"sync"
@@ -120,7 +119,7 @@ func (a *AccountStore) NextSeed() (*accounts.Account, error) {
 	defer a.acctsMu.Unlock()
 	acct := a.nextAcct()
 	if acct == nil {
-		return nil, errors.New("no account available")
+		return nil, nil
 	}
 	a.seeds[acct.Address] = struct{}{}
 	return acct, a.ks.Unlock(*acct, config.pass)

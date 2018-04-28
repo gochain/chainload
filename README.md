@@ -6,8 +6,7 @@
 
 ## How to use
 
-With at least one pre-existing (and sufficiently funded) account under
-`keystore/`, simply executing `chainload` will fire 1 transaction per
+By default, simply executing `chainload` will fire 1 transaction per
 second at `http://localhost:8545` with chain id `1234`. Reports are
 logged every 30s, with pprof and various metrics are available via expvar.
 
