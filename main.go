@@ -130,8 +130,14 @@ func run(nodes []*Node) error {
 	for _, node := range nodes {
 		acct, err := node.NextSeed()
 		if err != nil {
-			log.Printf("Failed to create account seeder\terr=%q\n", err)
-			continue
+			log.Printf("Failed to get seeder account\terr=%q\n", err)
+		}
+		if err != nil || acct == nil {
+			acct, err = node.New(ctx)
+			if err != nil {
+				log.Printf("Failed to create new seeder account\terr=%q\n", err)
+				continue
+			}
 		}
 		s := &Seeder{
 			Node: node,
