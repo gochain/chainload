@@ -19,6 +19,8 @@ chainload --help
 Usage of chainload:
   -amount uint
     	tx amount (approximate) (default 10)
+  -cycle duration
+    	how often to cycle a sender's account (default 5m0s)
   -dur duration
     	duration to run - omit for unlimited
   -gas uint

@@ -26,6 +26,7 @@ type Config struct {
 	urlsCSV   string
 	tps       int
 	senders   int
+	cycle     time.Duration
 	dur       time.Duration
 	pass      string
 	gas       uint64
@@ -41,6 +42,7 @@ func init() {
 	flag.StringVar(&config.urlsCSV, "urls", "http://localhost:8545", "csv of urls")
 	flag.IntVar(&config.tps, "tps", 1, "transactions per second")
 	flag.IntVar(&config.senders, "senders", 0, "total number of concurrent senders/accounts - defaults to 1/10 of tps")
+	flag.DurationVar(&config.cycle, "cycle", 5*time.Minute, "how often to cycle a sender's account")
 	flag.DurationVar(&config.dur, "dur", 0, "duration to run - omit for unlimited")
 	flag.StringVar(&config.pass, "pass", "#go@chain42", "passphrase to unlock accounts")
 	flag.Uint64Var(&config.gas, "gas", 200000, "gas (approximate)")

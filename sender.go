@@ -179,8 +179,10 @@ func (s *Sender) Send(ctx context.Context, txs <-chan struct{}, done func()) {
 	}
 	s.transition(senderSendState)
 
-	newAcct := time.After(time.Second * time.Duration(60+rand.Intn(60)))
-	updateGas := time.After(time.Second * time.Duration(60+rand.Intn(60)))
+	newAcct := time.NewTimer(config.cycle + time.Duration(rand.Intn(60))*time.Second)
+	defer newAcct.Stop()
+	updateGas := time.NewTimer(time.Second * time.Duration(60+rand.Intn(60)))
+	defer newAcct.Stop()
 	for {
 		if ctx.Err() != nil {
 			return
@@ -188,15 +190,13 @@ func (s *Sender) Send(ctx context.Context, txs <-chan struct{}, done func()) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-newAcct:
+		case <-newAcct.C:
 			s.transition(senderAssignState)
 			s.assignAcct(ctx)
-			newAcct = time.After(time.Second * time.Duration(60+rand.Intn(60)))
 			s.transition(senderSendState)
-		case <-updateGas:
+		case <-updateGas.C:
 			s.transition(senderUpdateGasState)
 			s.updateGasPrice(ctx)
-			updateGas = time.After(time.Second * time.Duration(60+rand.Intn(60)))
 			s.transition(senderSendState)
 		case <-txs:
 			s.send(ctx)
