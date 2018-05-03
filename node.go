@@ -33,7 +33,7 @@ func (n *Node) refund(ctx context.Context, acct accounts.Account, nonce uint64, 
 	}
 	suggestGasPriceTimer.UpdateSince(t)
 
-	gas := jitter(config.gas, 10)
+	gas := randBetween(config.gas, 2*config.gas)
 	var amount big.Int
 	amount.Mul(new(big.Int).SetUint64(gas), gasPrice)
 	amount.Sub(bal, &amount)

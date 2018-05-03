@@ -26,7 +26,7 @@ func (b *backOff) doTimed(ctx context.Context, timer metrics.Timer, fn func() er
 		if ctx.Err() != nil {
 			return false
 		}
-		if wait = jitterDur(2*wait, 10); wait > b.maxWait {
+		if wait = randBetweenDur(3/2*wait, 5/2*wait); wait > b.maxWait {
 			wait = b.maxWait
 		}
 		log.Printf("Pausing: %s attempt=%d pause=%s\n", err, errs, wait)
@@ -42,20 +42,10 @@ func (b *backOff) doTimed(ctx context.Context, timer metrics.Timer, fn func() er
 	return true
 }
 
-// jitterDur returns d with random jitterDur +/- up to limit percent, rounded to seconds.
-func jitterDur(d time.Duration, limit int) time.Duration {
-	j := time.Duration(int(d) * rand.Intn(limit) / 100)
-	if rand.Intn(2) == 0 {
-		j = -j
-	}
-	return (d + j).Round(time.Second)
+func randBetweenDur(start, end time.Duration) time.Duration {
+	return start + time.Duration(rand.Int63n(int64(end-start)))
 }
 
-// jitter returns i with random jitterDur +/- up to limit percent.
-func jitter(i uint64, limit int) uint64 {
-	j := i * uint64(rand.Intn(limit)) / 100
-	if rand.Intn(2) == 0 {
-		j = -j
-	}
-	return i + j
+func randBetween(start, end uint64) uint64 {
+	return start + uint64(rand.Int63n(int64(end-start)))
 }
