@@ -179,9 +179,9 @@ func (s *Sender) Send(ctx context.Context, txs <-chan struct{}, done func()) {
 	}
 	s.transition(senderSendState)
 
-	newAcct := time.NewTimer(config.cycle + time.Duration(rand.Intn(60))*time.Second)
+	newAcct := time.NewTimer(randBetweenDur(config.cycle, 2*config.cycle))
 	defer newAcct.Stop()
-	updateGas := time.NewTimer(time.Second * time.Duration(60+rand.Intn(60)))
+	updateGas := time.NewTimer(randBetweenDur(time.Minute, 2*time.Minute))
 	defer newAcct.Stop()
 	for {
 		if ctx.Err() != nil {

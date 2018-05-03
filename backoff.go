@@ -43,7 +43,7 @@ func (b *backOff) doTimed(ctx context.Context, timer metrics.Timer, fn func() er
 }
 
 func randBetweenDur(start, end time.Duration) time.Duration {
-	return start + time.Duration(rand.Int63n(int64(end-start)))
+	return (start + time.Duration(rand.Int63n(int64(end-start)))).Round(time.Second)
 }
 
 func randBetween(start, end uint64) uint64 {

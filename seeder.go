@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"math/rand"
 	"time"
 
 	"github.com/gochain-io/gochain/accounts"
@@ -40,7 +39,8 @@ func (s *Seeder) Run(ctx context.Context, done func()) {
 
 	log.Printf("Running seeder\t%s\n", s)
 	bo := backOff{maxWait: 30 * time.Second, wait: 1 * time.Second}
-	collectTick := time.Tick(time.Second * time.Duration(10+rand.Intn(10)))
+	collect := time.NewTimer(randBetweenDur(5*time.Minute, 10*time.Minute))
+	defer collect.Stop()
 	for {
 		s.transition(seederEnsureFundsState)
 		var gasPrice *big.Int
@@ -129,14 +129,13 @@ func (s *Seeder) Run(ctx context.Context, done func()) {
 				s.nonce++
 				seed.Resp <- nil
 			}
-		case <-collectTick:
+		case <-collect.C:
 			s.transition(seederCollectState)
 			// Collect more funds for a while.
 			collectCtx, _ := context.WithTimeout(ctx, 10*time.Second)
 			if c, err := s.collect(collectCtx, amt.Uint64()); err != nil {
 				log.Printf("Refund collection failed\t%s collected=%d err=%q\n", s, c, err)
 			}
-			collectTick = time.Tick(time.Second * time.Duration(10+rand.Intn(10)))
 			s.transition(seederSeedState)
 		}
 	}
