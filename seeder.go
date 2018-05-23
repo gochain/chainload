@@ -53,8 +53,6 @@ func (s *Seeder) Run(ctx context.Context, done func()) {
 		}) {
 			return
 		}
-		// Pay double.
-		gasPrice.Add(gasPrice, gasPrice)
 		fee := new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(randBetween(config.gas, 2*config.gas)))
 		amt := fee.Mul(fee, new(big.Int).SetUint64(1000))
 		// Ensure we have enough funds to seed.
