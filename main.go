@@ -41,7 +41,7 @@ func init() {
 	flag.Uint64Var(&config.id, "id", 1234, "id")
 	flag.StringVar(&config.urlsCSV, "urls", "http://localhost:8545", "csv of urls")
 	flag.IntVar(&config.tps, "tps", 1, "transactions per second")
-	flag.IntVar(&config.senders, "senders", 0, "total number of concurrent senders/accounts - defaults to 1/10 of tps")
+	flag.IntVar(&config.senders, "senders", 0, "total number of concurrent senders/accounts - defaults to tps")
 	flag.DurationVar(&config.cycle, "cycle", 5*time.Minute, "how often to cycle a sender's account")
 	flag.DurationVar(&config.dur, "dur", 0, "duration to run - omit for unlimited")
 	flag.StringVar(&config.pass, "pass", "#go@chain42", "passphrase to unlock accounts")
@@ -86,11 +86,11 @@ func setup() ([]*Node, error) {
 		}
 		return nil, fmt.Errorf("illegal extra arguments: %v", flag.Args())
 	}
-	if config.senders == 0 {
-		config.senders = config.tps / 10
-		if config.senders == 0 {
-			config.senders = 1
-		}
+	if config.tps < 1 {
+		return nil, fmt.Errorf("illegal tps argument: %d", config.tps)
+	}
+	if config.senders < 1 {
+		config.senders = config.tps
 	}
 
 	as := NewAccountStore(keystore.NewPlaintextKeyStore("keystore"), new(big.Int).SetUint64(config.id))
