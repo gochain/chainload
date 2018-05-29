@@ -16,7 +16,8 @@ import (
 
 type Sender struct {
 	*Node
-	Number int
+	Number    int
+	RateLimit time.Duration
 
 	acct     *accounts.Account
 	recv     []common.Address
@@ -218,7 +219,7 @@ func (s *Sender) updateGasPrice(ctx context.Context) {
 func (s *Sender) send(ctx context.Context) {
 	recv := s.recv[int(s.nonce)%len(s.recv)]
 	gp := s.gasPrice.Uint64()
-	if rand.Intn(2)==0 {
+	if rand.Intn(2) == 0 {
 		gp = randBetween(gp, gp*2)
 	}
 	amount := new(big.Int).SetUint64(randBetween(config.amount, 2*config.amount))
@@ -238,6 +239,13 @@ func (s *Sender) send(ctx context.Context) {
 	if err == nil {
 		sendTxTimer.UpdateSince(t)
 		s.nonce++
+
+		select {
+		case <-time.After(s.RateLimit):
+		case <-ctx.Done():
+			return
+		}
+
 		return
 	}
 	if ctx.Err() != nil {

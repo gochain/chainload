@@ -173,12 +173,15 @@ func run(nodes []*Node) error {
 
 	wg.Add(config.senders)
 	txs := make(chan struct{}, config.tps)
+	// Individual sender tps limit is 2x ideal.
+	tpsLimit := 2 * config.tps / config.senders
 
 	for num := 0; num < config.senders; num++ {
 		node := num % len(nodes)
 		s := Sender{
-			Number: num,
-			Node:   nodes[node],
+			Number:    num,
+			Node:      nodes[node],
+			RateLimit: time.Second / time.Duration(tpsLimit),
 		}
 		go s.Send(ctx, txs, wg.Done)
 	}
