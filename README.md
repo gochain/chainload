@@ -8,7 +8,7 @@
 
 By default, simply executing `chainload` will fire 1 transaction per
 second at `http://localhost:8545` with chain id `1234`. Reports are
-logged every 30s, with pprof and various metrics are available via expvar.
+logged every 30s, with pprof and other metrics available via expvar.
 
 The target url(s), transaction rate, chain id, and more can be set via
 flags:
@@ -32,7 +32,7 @@ Usage of chainload:
   -pprof string
     	pprof addr (default ":6060")
   -senders int
-    	total number of concurrent senders/accounts - defaults to 1/10 of tps
+    	total number of concurrent senders/accounts - defaults to tps
   -tps int
     	transactions per second (default 1)
   -urls string
@@ -48,19 +48,18 @@ chainload -id 9876 -urls http://node1:8545,http://node2:8545 -tps 100 -senders 5
 
 ```
 chainload version
-> chainload version: 0.0.1
+> chainload version: 0.0.18
 
 ```
 
 ## How it works
 
-Accounts are managed locally under `keystore/`. Seeder accounts must
-be pre-existing. One seeder is started per url, to continually re-claim
-funds from other accounts, and to seed funds to senders. Senders may
-reuse pre-existing accounts or create new ones. Senders continually send
-txs to a set of receivers, while periodically cycling out the sender and
-receiver addresses. The `gas` and `amount` of each transaction varies
-randomly from the suggested approximate values.
+Accounts are managed locally under `keystore/`. Pre-existing accounts are reused
+and new onces created as necessary. One seeder goroutine is started per url to 
+seed funds to senders, and to continually re-claim funds from other accounts. 
+Senders goroutines continually send txs to a set of receivers, while periodically 
+cycling out the sender and receiver addresses. The `gas` and `amount` of each 
+transaction varies randomly from the suggested approximate values.
 
 ## Problems
 
