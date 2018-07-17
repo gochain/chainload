@@ -55,7 +55,7 @@ chainload version
 ## How it works
 
 Accounts are managed locally under `keystore/`. Pre-existing accounts are reused
-and new onces created as necessary. One seeder goroutine is started per url to 
+and new ones are created as necessary. One seeder goroutine is started per url to 
 seed funds to senders, and to continually re-claim funds from other accounts. 
 Senders goroutines continually send txs to a set of receivers, while periodically 
 cycling out the sender and receiver addresses. The `gas` and `amount` of each 
