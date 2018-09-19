@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/gochain-io/gochain/accounts/keystore"
-	"github.com/gochain-io/gochain/ethclient"
+	"github.com/gochain-io/gochain/goclient"
 	"github.com/pkg/errors"
 )
 
@@ -99,7 +99,7 @@ func setup() ([]*Node, error) {
 	var nodes []*Node
 	for i := range urls {
 		url := urls[i]
-		client, err := ethclient.Dial(url)
+		client, err := goclient.Dial(url)
 		if err != nil {
 			log.Printf("Failed to dial\turl=%s err=%q\n", url, err)
 		} else {
@@ -233,7 +233,7 @@ loop:
 	return nil
 }
 
-func waitBlocks(ctx context.Context, client *ethclient.Client, blocks uint64) (uint64, error) {
+func waitBlocks(ctx context.Context, client *goclient.Client, blocks uint64) (uint64, error) {
 	var first *uint64
 	for {
 		t := time.Now()

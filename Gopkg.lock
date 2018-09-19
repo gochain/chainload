@@ -29,15 +29,14 @@
     "common/hexutil",
     "common/math",
     "common/mclock",
-    "common/perfutils",
     "core/types",
     "crypto",
     "crypto/randentropy",
     "crypto/secp256k1",
     "crypto/sha3",
-    "ethclient",
     "ethdb",
     "event",
+    "goclient",
     "log",
     "metrics",
     "params",
@@ -45,8 +44,8 @@
     "rpc",
     "trie"
   ]
-  revision = "3f4bc3a0507910f89704b1129b608e632a28225b"
-  version = "2.0.34"
+  revision = "a5313e608d2cd928ec9dd172f334aebf550bbf66"
+  version = "v2.1.61"
 
 [[projects]]
   branch = "master"
@@ -107,6 +106,26 @@
   revision = "714f901b98fdb3aa954b4193d8cbd64a28d80cad"
 
 [[projects]]
+  name = "go.opencensus.io"
+  packages = [
+    ".",
+    "internal",
+    "internal/tagencoding",
+    "plugin/ochttp",
+    "plugin/ochttp/propagation/b3",
+    "stats",
+    "stats/internal",
+    "stats/view",
+    "tag",
+    "trace",
+    "trace/internal",
+    "trace/propagation",
+    "trace/tracestate"
+  ]
+  revision = "79993219becaa7e29e3b60cb67f5b8e82dee11d6"
+  version = "v0.17.0"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = [
@@ -128,12 +147,6 @@
   revision = "f6f352972f061230a99fbf49d1eb8073ebdb36cb"
 
 [[projects]]
-  name = "gopkg.in/fatih/set.v0"
-  packages = ["."]
-  revision = "57907de300222151a123d29255ed17f5ed43fad3"
-  version = "v0.1.0"
-
-[[projects]]
   branch = "v2"
   name = "gopkg.in/karalabe/cookiejar.v2"
   packages = ["collections/prque"]
@@ -148,6 +161,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0341f7d726eb1471d224041ba5f78202e1946e95f7353912c5ad6b038bbb77f7"
+  inputs-digest = "b9f3a72303737eaf959179613883ddeaf557eba978906fcb18490abb30cdb0b9"
   solver-name = "gps-cdcl"
   solver-version = 1

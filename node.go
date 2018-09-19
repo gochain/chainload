@@ -8,12 +8,12 @@ import (
 	"github.com/gochain-io/gochain/accounts"
 	"github.com/gochain-io/gochain/common"
 	"github.com/gochain-io/gochain/core/types"
-	"github.com/gochain-io/gochain/ethclient"
+	"github.com/gochain-io/gochain/goclient"
 )
 
 type Node struct {
 	Number int
-	*ethclient.Client
+	*goclient.Client
 	*AccountStore
 	SeedCh chan SeedReq
 }
