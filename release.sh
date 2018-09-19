@@ -35,9 +35,8 @@ docker push $user/$image:$version
 docker push $user/$image:latest
 
 # Push GCR docker images
-echo $ACCT_AUTH > ${HOME}/gcloud-service-key.json
 ./tmp/google-cloud-sdk/bin/gcloud auth activate-service-account --key-file=${HOME}/gcloud-service-key.json
-docker login -u _json_key -p "$(cat ${HOME}/gcloud-service-key.json)" https://gcr.io
+echo $ACCT_AUTH | docker login -u _json_key --password-stdin https://gcr.io
 docker tag $user/$image:latest gcr.io/$gcr_project/$image:latest
 docker tag $user/$image:latest gcr.io/$gcr_project/$image:$version
 docker push gcr.io/$gcr_project/$image:latest
