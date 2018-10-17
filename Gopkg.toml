@@ -1,6 +1,6 @@
 [[constraint]]
   name = "github.com/gochain-io/gochain"
-  version = "^2.1.61"
+  version = "^2.1.88"
 
 [[constraint]]
   name = "github.com/pkg/errors"
