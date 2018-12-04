@@ -194,7 +194,7 @@ func run(nodes []*Node) error {
 			for tx := range txsIn {
 				if time.Until(next) <= 0 {
 					time.Sleep(randBetweenDur(0, config.variable))
-					next = time.Now().Add(randBetweenDur(0, config.variable))
+					next = time.Now().Add(randBetweenDur(config.variable/2, config.variable))
 				}
 				txsOut <- tx
 			}
