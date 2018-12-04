@@ -203,6 +203,9 @@ func run(nodes []*Node) error {
 
 	// Individual sender tps limit is 2x ideal.
 	tpsLimit := 2 * config.tps / config.senders
+	if tpsLimit == 0 {
+		tpsLimit = 1
+	}
 
 	for num := 0; num < config.senders; num++ {
 		node := num % len(nodes)
