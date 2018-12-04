@@ -29,6 +29,14 @@ func (r *Report) String() string {
 		r.dur.Round(time.Second), r.txs, r.errs, r.txs/int64(r.dur/time.Second))
 }
 
+type Status struct {
+	latest, recent, total Report
+}
+
+func (s *Status) String() string {
+	return fmt.Sprintf("total\t%s\nrecent\t%s\nlatest\t%s", &s.total, &s.recent, &s.latest)
+}
+
 // Reporter tracks statistics and emits reports for an execution.
 type Reporter interface {
 	// Report generates a report since the last (or start).
@@ -74,7 +82,7 @@ type Reports struct {
 }
 
 // Add adds the report to the set of reports.
-func (r *Reports) Add(rep *Report) {
+func (r *Reports) Add(rep *Report) *Status {
 	r.latest = rep
 
 	r.recent[r.recIdx] = rep
@@ -83,17 +91,20 @@ func (r *Reports) Add(rep *Report) {
 	r.total.dur += rep.dur
 	r.total.txs += rep.txs
 	r.total.errs += rep.errs
+
+	return r.status()
 }
 
-func (r *Reports) Status() (latest, recent, total Report) {
-	latest = *r.latest
+func (r *Reports) status() *Status {
+	var s Status
+	s.latest = *r.latest
 	for _, rec := range r.recent {
 		if rec != nil {
-			recent.dur += rec.dur
-			recent.txs += rec.txs
-			recent.errs += rec.errs
+			s.recent.dur += rec.dur
+			s.recent.txs += rec.txs
+			s.recent.errs += rec.errs
 		}
 	}
-	total = r.total
-	return
+	s.total = r.total
+	return &s
 }
