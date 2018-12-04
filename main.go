@@ -33,6 +33,14 @@ type Config struct {
 	amount    uint64
 	pprofAddr string
 	verbose   bool
+	variable  time.Duration
+}
+
+func (c *Config) String() string {
+	return fmt.Sprintf("id=%d urls=%q tps=%d senders=%d cycle=%s dur=%s pass=%q gas=%d amount=%d "+
+		"pprof=%q verbose=%t variable=%s",
+		config.id, config.urlsCSV, config.tps, config.senders, config.cycle, config.dur, config.pass, config.gas,
+		config.amount, config.pprofAddr, config.verbose, config.variable)
 }
 
 var config = Config{}
@@ -49,6 +57,7 @@ func init() {
 	flag.Uint64Var(&config.amount, "amount", 10, "tx amount (approximate)")
 	flag.StringVar(&config.pprofAddr, "pprof", ":6060", "pprof addr")
 	flag.BoolVar(&config.verbose, "v", false, "verbose logging")
+	flag.DurationVar(&config.variable, "variable", 30*time.Second, "variable transaction rate")
 }
 
 func main() {
@@ -64,8 +73,8 @@ func main() {
 		log.Println(http.ListenAndServe(config.pprofAddr, nil))
 	}()
 
-	log.Printf("Starting execution\tid=%d urls=%s tps=%d senders=%d duration=%s gas=%d amount=%d\n",
-		config.id, config.urlsCSV, config.tps, config.senders, config.dur, config.gas, config.amount)
+	log.Println("Version:", Version)
+	log.Println("Starting execution:", &config)
 	err = run(nodes)
 	if err != nil {
 		log.Fatalf("Failed\terr=%q\n", err)
@@ -172,7 +181,25 @@ func run(nodes []*Node) error {
 	}
 
 	wg.Add(config.senders)
-	txs := make(chan struct{}, config.tps)
+	txsIn := make(chan struct{}, config.tps*10)
+	txsOut := txsIn
+
+	if config.variable > 0 {
+		// Spawn a goroutine to intercept released txs and sporadically delay them to vary the rate.
+		txsOut = make(chan struct{}, config.tps)
+		go func() {
+			defer close(txsOut)
+			next := time.Now()
+			for tx := range txsIn {
+				if time.Until(next) <= 0 {
+					time.Sleep(randBetweenDur(0, config.variable))
+					next = time.Now().Add(randBetweenDur(0, config.variable))
+				}
+				txsOut <- tx
+			}
+		}()
+	}
+
 	// Individual sender tps limit is 2x ideal.
 	tpsLimit := 2 * config.tps / config.senders
 
@@ -183,7 +210,7 @@ func run(nodes []*Node) error {
 			Node:      nodes[node],
 			RateLimit: time.Second / time.Duration(tpsLimit),
 		}
-		go s.Send(ctx, txs, wg.Done)
+		go s.Send(ctx, txsOut, wg.Done)
 	}
 
 	// 1/10 second batches, with reports every 30s.
@@ -201,26 +228,23 @@ loop:
 		case <-ctx.Done():
 			break loop
 		case <-report.C:
-			reports.Add(stats.Report())
-			l, r, t := reports.Status()
-			log.Printf("Report - total\t%s\n", &t)
-			log.Printf("Report - recent\t%s\n", &r)
-			log.Printf("Report - latest\t%s\n", &l)
+			s := reports.Add(stats.Report())
+			log.Println("Status:")
+			log.Println(s)
 		case <-batch.C:
 			for i := 0; i < batchSize; i++ {
-				txs <- struct{}{}
+				txsIn <- struct{}{}
 			}
 		}
 	}
-	close(txs)
+	close(txsIn)
 	cancelFn()
 	wg.Wait()
 
-	reports.Add(stats.Report())
-	l, r, t := reports.Status()
-	log.Printf("Final report - total\t%s\n", &t)
-	log.Printf("Final report - recent\t%s\n", &r)
-	log.Printf("Final report - latest\t%s\n", &l)
+	s := reports.Add(stats.Report())
+	log.Println("Final Status:")
+	log.Println(s)
+
 	bigBlock, err := nodes[0].LatestBlockNumber(ctx)
 	if ctx.Err() != nil {
 		return ctx.Err()
