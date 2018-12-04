@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -214,14 +215,20 @@ func run(nodes []*Node) error {
 	}
 
 	// 1/10 second batches, with reports every 30s.
-	batch := time.NewTicker(time.Second / 10)
+	const batchCount = 10
+	batch := time.NewTicker(time.Second / batchCount)
 	report := time.NewTicker(30 * time.Second)
 	defer batch.Stop()
 	defer report.Stop()
 
-	batchSize := config.tps / 10
-	var reports Reports
+	batches := make([]int, batchCount)
+	distribute(config.tps, batches)
+	rand.Shuffle(len(batches), func(i, j int) {
+		batches[i], batches[j] = batches[j], batches[i]
+	})
 
+	var reports Reports
+	var cnt int
 loop:
 	for {
 		select {
@@ -232,9 +239,11 @@ loop:
 			log.Println("Status:")
 			log.Println(s)
 		case <-batch.C:
+			batchSize := batches[cnt%len(batches)]
 			for i := 0; i < batchSize; i++ {
 				txsIn <- struct{}{}
 			}
+			cnt++
 		}
 	}
 	close(txsIn)
