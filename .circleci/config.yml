@@ -29,17 +29,12 @@ jobs:
       - run: go version
       - run: make build
       - run: make test
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
   release:
     <<: *defaults
     steps:
       - setup_remote_docker:
           docker_layer_caching: true
-      - attach_workspace:
-          at: .
+      -checkout
       - run:
           name: install gcloud
           command: |
