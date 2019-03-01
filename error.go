@@ -1,4 +1,4 @@
-package main
+package chainload
 
 import "strings"
 

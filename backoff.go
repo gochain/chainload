@@ -1,13 +1,12 @@
-package main
+package chainload
 
 import (
 	"context"
 	"log"
+	"math/rand"
 	"time"
 
-	"math/rand"
-
-	"github.com/rcrowley/go-metrics"
+	metrics "github.com/rcrowley/go-metrics"
 )
 
 type backOff struct {

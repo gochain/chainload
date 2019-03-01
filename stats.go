@@ -1,10 +1,10 @@
-package main
+package chainload
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/rcrowley/go-metrics"
+	metrics "github.com/rcrowley/go-metrics"
 )
 
 var (

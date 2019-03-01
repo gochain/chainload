@@ -1,4 +1,4 @@
-package main
+package chainload
 
 import (
 	"context"
@@ -12,7 +12,9 @@ import (
 )
 
 type Node struct {
-	Number int
+	Number  int
+	gas     uint64
+	verbose bool
 	*goclient.Client
 	*AccountStore
 	SeedCh chan SeedReq
@@ -33,7 +35,7 @@ func (n *Node) refund(ctx context.Context, acct accounts.Account, nonce uint64, 
 	}
 	suggestGasPriceTimer.UpdateSince(t)
 
-	gas := randBetween(config.gas, 2*config.gas)
+	gas := randBetween(n.gas, 2*n.gas)
 	var amount big.Int
 	amount.Mul(new(big.Int).SetUint64(gas), gasPrice)
 	amount.Sub(bal, &amount)

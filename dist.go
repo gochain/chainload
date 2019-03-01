@@ -1,4 +1,4 @@
-package main
+package chainload
 
 // distribute sets the slice elements to nearly even values which sum to v.
 func distribute(v int, s []int) {

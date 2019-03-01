@@ -15,13 +15,8 @@ else
   exit 1
 fi
 
-version=$(git tag --points-at HEAD)
-if [[ $version == "" ]]; then
-  version=$(git log -1 --format="%h")
-fi
-echo "Version: $version"
-
 make docker
+version=$(./version.sh)
 
 # Push docker hub images
 docker tag $user/$image:latest $user/$image:$version

@@ -1,4 +1,4 @@
-package main
+package chainload
 
 import (
 	"context"
@@ -16,6 +16,7 @@ type AccountStore struct {
 	ks      *keystore.KeyStore
 	chainID *big.Int
 	ksAccts []accounts.Account
+	pass    string
 
 	acctsMu    sync.RWMutex
 	nextIdx    int
@@ -30,7 +31,7 @@ type acctNonce struct {
 	nonce uint64
 }
 
-func NewAccountStore(ks *keystore.KeyStore, chainID *big.Int) *AccountStore {
+func NewAccountStore(ks *keystore.KeyStore, chainID *big.Int, pass string) *AccountStore {
 	return &AccountStore{
 		ks:         ks,
 		ksAccts:    ks.Accounts(),
@@ -77,12 +78,12 @@ func (a *AccountStore) Next(ctx context.Context, node int) (acct *accounts.Accou
 	if acct == nil {
 		return
 	}
-	err = a.ks.Unlock(*acct, config.pass)
+	err = a.ks.Unlock(*acct, a.pass)
 	return
 }
 
 func (a *AccountStore) New(ctx context.Context) (*accounts.Account, error) {
-	acct, err := a.ks.NewAccount(config.pass)
+	acct, err := a.ks.NewAccount(a.pass)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +91,7 @@ func (a *AccountStore) New(ctx context.Context) (*accounts.Account, error) {
 	a.acctsMu.Lock()
 	a.addrs = append(a.addrs, acct.Address)
 	a.acctsMu.Unlock()
-	return &acct, a.ks.Unlock(acct, config.pass)
+	return &acct, a.ks.Unlock(acct, a.pass)
 }
 
 func (a *AccountStore) Return(acct *accounts.Account, node int, nonce uint64) {
@@ -122,7 +123,7 @@ func (a *AccountStore) NextSeed() (*accounts.Account, error) {
 		return nil, nil
 	}
 	a.seeds[acct.Address] = struct{}{}
-	return acct, a.ks.Unlock(*acct, config.pass)
+	return acct, a.ks.Unlock(*acct, a.pass)
 }
 
 // nextAcct returns the next available account from the keystore, or nil if none
