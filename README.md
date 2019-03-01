@@ -70,3 +70,8 @@ via `ulimit -n <new limit>`. It can be permanently set in
 ```
 root             soft    nofile          100000
 ```
+
+# Releases
+
+CI releases are manually triggered. If no tag is set, then the commit hash will be used as the version and docker tag.
+To produce a versioned release, first tag the desired commit (e.g. `v0.1.0`), then approve the CI release step (or re-run, if a commit hash release has already been produced).
