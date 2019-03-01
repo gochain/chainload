@@ -34,7 +34,7 @@ jobs:
     steps:
       - setup_remote_docker:
           docker_layer_caching: true
-      -checkout
+      - checkout
       - run:
           name: install gcloud
           command: |
