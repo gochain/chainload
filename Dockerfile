@@ -1,17 +1,18 @@
 # build stage
 FROM golang:1.12-alpine AS build-env
 RUN apk --no-cache add build-base git bzr mercurial gcc
-ENV D=/go/src/github.com/gochain-io/chainload
-# Uncomment once gochain repo is public
-# RUN go get -u github.com/golang/dep/cmd/dep
-# ADD Gopkg.* $D/
-# RUN cd $D && dep ensure --vendor-only
+ENV D=/chainload
+WORKDIR $D
+# cache dependencies
+ADD go.mod $D
+ADD go.sum $D
+RUN go mod download
+# build
 ADD . $D
-RUN cd $D && go build -o chainload && cp chainload /tmp/
+RUN cd $D && go install
 
 # final stage
 FROM alpine
 RUN apk add --no-cache ca-certificates curl
-WORKDIR /app
-COPY --from=build-env /tmp/chainload /usr/local/bin
+COPY --from=build-env /go/bin/chainload /usr/local/bin/chainload
 ENTRYPOINT ["chainload"]
