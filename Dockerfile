@@ -16,5 +16,6 @@ RUN cd $D && go install -ldflags "-X main.version=${VERSION}" ./cmd/chainload
 # final stage
 FROM alpine
 RUN apk add --no-cache ca-certificates curl
+WORKDIR /chainload
 COPY --from=build-env /go/bin/chainload /usr/local/bin/chainload
 ENTRYPOINT ["chainload"]
