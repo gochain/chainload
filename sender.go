@@ -1,4 +1,4 @@
-package main
+package chainload
 
 import (
 	"context"
@@ -16,6 +16,8 @@ import (
 
 type Sender struct {
 	*Node
+	amount    uint64
+	cycle     time.Duration
 	Number    int
 	RateLimit time.Duration
 
@@ -95,7 +97,7 @@ func (s *Sender) assignAcct(ctx context.Context) {
 
 	log.Printf("Assigned sender account\t%s balance=%d\n", s, bal)
 
-	fee := new(big.Int).Mul(s.gasPrice, new(big.Int).SetUint64(config.gas))
+	fee := new(big.Int).Mul(s.gasPrice, new(big.Int).SetUint64(s.gas))
 	amt := fee.Mul(fee, new(big.Int).SetUint64(1000)).Uint64()
 	if bal < amt {
 		amt = amt - bal
@@ -125,7 +127,7 @@ func (s *Sender) assignAcct(ctx context.Context) {
 	}) {
 		return
 	}
-	if config.verbose {
+	if s.verbose {
 		log.Printf("Assigned sender receivers\t%s receivers=%s\n", s, receivers(s.recv))
 	}
 }
@@ -180,7 +182,7 @@ func (s *Sender) Send(ctx context.Context, txs <-chan struct{}, done func()) {
 	}
 	s.transition(senderSendState)
 
-	newAcct := time.NewTimer(randBetweenDur(config.cycle, 2*config.cycle))
+	newAcct := time.NewTimer(randBetweenDur(s.cycle, 2*s.cycle))
 	defer newAcct.Stop()
 	updateGas := time.NewTimer(randBetweenDur(time.Minute, 2*time.Minute))
 	defer newAcct.Stop()
@@ -222,8 +224,8 @@ func (s *Sender) send(ctx context.Context) {
 	if rand.Intn(2) == 0 {
 		gp = randBetween(gp, gp*2)
 	}
-	amount := new(big.Int).SetUint64(randBetween(config.amount, 2*config.amount))
-	tx := types.NewTransaction(s.nonce, recv, amount, randBetween(config.gas, 2*config.gas), new(big.Int).SetUint64(gp), nil)
+	amount := new(big.Int).SetUint64(randBetween(s.amount, 2*s.amount))
+	tx := types.NewTransaction(s.nonce, recv, amount, randBetween(s.gas, 2*s.gas), new(big.Int).SetUint64(gp), nil)
 	t := time.Now()
 	tx, err := s.AccountStore.SignTx(*s.acct, tx)
 	if err != nil {
@@ -282,7 +284,7 @@ func (s *Sender) send(ctx context.Context) {
 		print = true
 		wait = randBetweenDur(5*time.Second, 30*time.Second)
 	}
-	if wait == 0 && (print || config.verbose) {
+	if wait == 0 && (print || s.verbose) {
 		log.Printf("Failed to send\t%s err=%q\n", s, err)
 	}
 	if wait != 0 {

@@ -1,6 +1,6 @@
-package main
+package chainload
 
-import "github.com/rcrowley/go-metrics"
+import metrics "github.com/rcrowley/go-metrics"
 
 type state metrics.Counter
 

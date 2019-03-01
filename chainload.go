@@ -1,17 +1,13 @@
-package main
+package chainload
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log"
 	"math/big"
 	"math/rand"
-	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -19,92 +15,45 @@ import (
 
 	"github.com/gochain-io/gochain/v3/accounts/keystore"
 	"github.com/gochain-io/gochain/v3/goclient"
-	"github.com/pkg/errors"
 )
 
 type Config struct {
-	id        uint64
-	urlsCSV   string
-	tps       int
-	senders   int
-	cycle     time.Duration
-	dur       time.Duration
-	pass      string
-	gas       uint64
-	amount    uint64
-	pprofAddr string
-	verbose   bool
-	variable  time.Duration
+	Id        uint64
+	UrlsCSV   string
+	TPS       int
+	Senders   int
+	Cycle     time.Duration
+	Duration  time.Duration
+	Password  string
+	Gas       uint64
+	Amount    uint64
+	PprofAddr string
+	Verbose   bool
+	Variable  time.Duration
 }
 
 func (c *Config) String() string {
-	return fmt.Sprintf("id=%d urls=%q tps=%d senders=%d cycle=%s dur=%s pass=%q gas=%d amount=%d "+
-		"pprof=%q verbose=%t variable=%s",
-		config.id, config.urlsCSV, config.tps, config.senders, config.cycle, config.dur, config.pass, config.gas,
-		config.amount, config.pprofAddr, config.verbose, config.variable)
+	return fmt.Sprintf("Id=%d urls=%q TPS=%d Senders=%d Cycle=%s Duration=%s Password=%q Gas=%d Amount=%d "+
+		"pprof=%q Verbose=%t Variable=%s",
+		c.Id, c.UrlsCSV, c.TPS, c.Senders, c.Cycle, c.Duration, c.Password, c.Gas,
+		c.Amount, c.PprofAddr, c.Verbose, c.Variable)
 }
 
-var config = Config{}
-
-func init() {
-	flag.Uint64Var(&config.id, "id", 1234, "id")
-	flag.StringVar(&config.urlsCSV, "urls", "http://localhost:8545", "csv of urls")
-	flag.IntVar(&config.tps, "tps", 1, "transactions per second")
-	flag.IntVar(&config.senders, "senders", 0, "total number of concurrent senders/accounts - defaults to tps")
-	flag.DurationVar(&config.cycle, "cycle", 5*time.Minute, "how often to cycle a sender's account")
-	flag.DurationVar(&config.dur, "dur", 0, "duration to run - omit for unlimited")
-	flag.StringVar(&config.pass, "pass", "#go@chain42", "passphrase to unlock accounts")
-	flag.Uint64Var(&config.gas, "gas", 200000, "gas (approximate)")
-	flag.Uint64Var(&config.amount, "amount", 10, "tx amount (approximate)")
-	flag.StringVar(&config.pprofAddr, "pprof", ":6060", "pprof addr")
-	flag.BoolVar(&config.verbose, "v", false, "verbose logging")
-	flag.DurationVar(&config.variable, "variable", 30*time.Second, "variable transaction rate")
+type Chainload struct {
+	config Config
+	nodes  []*Node
 }
 
-func main() {
-	nodes, err := setup()
-	if err != nil {
-		log.Fatalf("Failed to set up\terr=%q\n", err)
+func NewChainload(config Config) (*Chainload, error) {
+	if config.TPS < 1 {
+		return nil, fmt.Errorf("illegal TPS argument: %d", config.TPS)
+	}
+	if config.Senders < 1 {
+		config.Senders = config.TPS
 	}
 
-	// pprof
-	runtime.SetBlockProfileRate(1000000)
-	runtime.SetMutexProfileFraction(1000000)
-	go func() {
-		log.Println(http.ListenAndServe(config.pprofAddr, nil))
-	}()
-
-	log.Println("Version:", Version)
-	log.Println("Starting execution:", &config)
-	err = run(nodes)
-	if err != nil {
-		log.Fatalf("Failed\terr=%q\n", err)
-	}
-}
-
-func setup() ([]*Node, error) {
-	if fi, err := os.Stdin.Stat(); err != nil {
-		return nil, err
-	} else if fi.Size() > 0 {
-		return nil, errors.New("illegal input: non-empty stdin")
-	}
-	flag.Parse()
-	if args := flag.Args(); len(args) > 0 {
-		if len(args) == 1 && args[0] == "version" {
-			fmt.Fprintln(os.Stdout, "chainload version:", Version)
-			os.Exit(0)
-		}
-		return nil, fmt.Errorf("illegal extra arguments: %v", flag.Args())
-	}
-	if config.tps < 1 {
-		return nil, fmt.Errorf("illegal tps argument: %d", config.tps)
-	}
-	if config.senders < 1 {
-		config.senders = config.tps
-	}
-
-	as := NewAccountStore(keystore.NewPlaintextKeyStore("keystore"), new(big.Int).SetUint64(config.id))
-	urls := strings.Split(config.urlsCSV, ",")
+	as := NewAccountStore(keystore.NewPlaintextKeyStore("keystore"), new(big.Int).SetUint64(config.Id), config.Password)
+	urls := strings.Split(config.UrlsCSV, ",")
 
 	var nodes []*Node
 	for i := range urls {
@@ -115,6 +64,8 @@ func setup() ([]*Node, error) {
 		} else {
 			nodes = append(nodes, &Node{
 				Number:       i,
+				gas:          config.Gas,
+				verbose:      config.Verbose,
 				Client:       client,
 				AccountStore: as,
 				SeedCh:       make(chan SeedReq),
@@ -124,10 +75,10 @@ func setup() ([]*Node, error) {
 	if len(nodes) == 0 {
 		return nil, fmt.Errorf("failed to dial all nodes\turls=%d", len(urls))
 	}
-	return nodes, nil
+	return &Chainload{config: config, nodes: nodes}, nil
 }
 
-func run(nodes []*Node) error {
+func (c *Chainload) Run() error {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -139,7 +90,7 @@ func run(nodes []*Node) error {
 
 	var wg sync.WaitGroup
 	var seeders int
-	for _, node := range nodes {
+	for _, node := range c.nodes {
 		acct, err := node.NextSeed()
 		if err != nil {
 			log.Printf("Failed to get seeder account\terr=%q\n", err)
@@ -163,55 +114,57 @@ func run(nodes []*Node) error {
 		return ctx.Err()
 	}
 	if seeders == 0 {
-		return fmt.Errorf("failed to create any seeders\tcount=%d", len(nodes))
+		return fmt.Errorf("failed to create any seeders\tcount=%d", len(c.nodes))
 	}
 	log.Printf("Started seeders\tcount=%d\n", seeders)
 
-	sendBlock, err := waitBlocks(ctx, nodes[0].Client, 0)
+	sendBlock, err := waitBlocks(ctx, c.nodes[0].Client, 0)
 	if err != nil {
 		// Cancelled.
 		return err
 	}
-	log.Printf("Starting senders\tcount=%d block=%d\n", config.senders, sendBlock)
+	log.Printf("Starting Senders\tcount=%d block=%d\n", c.config.Senders, sendBlock)
 	stats := NewReporter()
-	if config.dur != 0 {
-		t := time.AfterFunc(config.dur, func() {
+	if c.config.Duration != 0 {
+		t := time.AfterFunc(c.config.Duration, func() {
 			cancelFn()
 		})
 		defer t.Stop()
 	}
 
-	wg.Add(config.senders)
-	txsIn := make(chan struct{}, config.tps*10)
+	wg.Add(c.config.Senders)
+	txsIn := make(chan struct{}, c.config.TPS*10)
 	txsOut := txsIn
 
-	if config.variable > 0 {
+	if c.config.Variable > 0 {
 		// Spawn a goroutine to intercept released txs and sporadically delay them to vary the rate.
-		txsOut = make(chan struct{}, config.tps)
+		txsOut = make(chan struct{}, c.config.TPS)
 		go func() {
 			defer close(txsOut)
 			next := time.Now()
 			for tx := range txsIn {
 				if time.Until(next) <= 0 {
-					time.Sleep(randBetweenDur(0, config.variable))
-					next = time.Now().Add(randBetweenDur(config.variable/2, config.variable))
+					time.Sleep(randBetweenDur(0, c.config.Variable))
+					next = time.Now().Add(randBetweenDur(c.config.Variable/2, c.config.Variable))
 				}
 				txsOut <- tx
 			}
 		}()
 	}
 
-	// Individual sender tps limit is 10x ideal.
-	tpsLimit := 10 * config.tps / config.senders
+	// Individual sender TPS limit is 10x ideal.
+	tpsLimit := 10 * c.config.TPS / c.config.Senders
 	if tpsLimit == 0 {
 		tpsLimit = 1
 	}
 
-	for num := 0; num < config.senders; num++ {
-		node := num % len(nodes)
+	for num := 0; num < c.config.Senders; num++ {
+		node := num % len(c.nodes)
 		s := Sender{
 			Number:    num,
-			Node:      nodes[node],
+			amount:    c.config.Amount,
+			cycle:     c.config.Cycle,
+			Node:      c.nodes[node],
 			RateLimit: time.Second / time.Duration(tpsLimit),
 		}
 		go s.Send(ctx, txsOut, wg.Done)
@@ -225,7 +178,7 @@ func run(nodes []*Node) error {
 	defer report.Stop()
 
 	batches := make([]int, batchCount)
-	distribute(config.tps, batches)
+	distribute(c.config.TPS, batches)
 	rand.Shuffle(len(batches), func(i, j int) {
 		batches[i], batches[j] = batches[j], batches[i]
 	})
@@ -257,7 +210,7 @@ loop:
 	log.Println("Final Status:")
 	log.Println(s)
 
-	bigBlock, err := nodes[0].LatestBlockNumber(ctx)
+	bigBlock, err := c.nodes[0].LatestBlockNumber(ctx)
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}

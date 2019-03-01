@@ -9,7 +9,9 @@ ADD go.sum $D
 RUN go mod download
 # build
 ADD . $D
-RUN cd $D && go install
+ARG VERSION="unknown"
+ENV VERSION=$VERSION
+RUN cd $D && go install -ldflags "-X main.version=${VERSION}" ./cmd/chainload
 
 # final stage
 FROM alpine

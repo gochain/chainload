@@ -1,4 +1,4 @@
-package main
+package chainload
 
 import (
 	"context"
@@ -53,7 +53,7 @@ func (s *Seeder) Run(ctx context.Context, done func()) {
 		}) {
 			return
 		}
-		fee := new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(randBetween(config.gas, 2*config.gas)))
+		fee := new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(randBetween(s.gas, 2*s.gas)))
 		amt := fee.Mul(fee, new(big.Int).SetUint64(1000))
 		// Ensure we have enough funds to seed.
 		if !bo.do(ctx, func() (err error) {
@@ -72,7 +72,7 @@ func (s *Seeder) Run(ctx context.Context, done func()) {
 			return
 		case seed := <-s.SeedCh:
 			// Seed the sender with funds.
-			tx := types.NewTransaction(s.nonce, seed.Addr, amt, randBetween(config.gas, 2*config.gas), gasPrice, nil)
+			tx := types.NewTransaction(s.nonce, seed.Addr, amt, randBetween(s.gas, 2*s.gas), gasPrice, nil)
 			t := time.Now()
 			tx, err := s.SignTx(*s.acct, tx)
 			if err != nil {
@@ -153,7 +153,7 @@ func (s *Seeder) ensureFunds(ctx context.Context, ensure uint64) (uint64, error)
 		return 0, ctx.Err()
 	}
 	bal := pb.Uint64()
-	if config.verbose {
+	if s.verbose {
 		log.Printf("Got seed balance\t%s balance=%d\n", s, bal)
 	}
 	if s.nonce == 0 {
