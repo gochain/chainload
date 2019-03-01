@@ -1,8 +1,5 @@
 .PHONY: dep build test docker release
 
-dep:
-	dep ensure --vendor-only
-
 build:
 	go build
 
