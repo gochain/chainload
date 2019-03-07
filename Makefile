@@ -1,9 +1,12 @@
-.PHONY: build test docker release
+.PHONY: build install test docker release
 
 version=$(shell ./version.sh)
 
 build:
 	go build -ldflags "-X main.version=${version}" ./cmd/chainload
+
+install:
+	go install -ldflags "-X main.version=${version}" ./cmd/chainload
 
 test:
 	go test ./...
