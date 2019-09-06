@@ -8,9 +8,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/gochain-io/gochain/v3/accounts"
-	"github.com/gochain-io/gochain/v3/common"
-	"github.com/gochain-io/gochain/v3/core/types"
+	"github.com/gochain/gochain/v3/accounts"
+	"github.com/gochain/gochain/v3/common"
+	"github.com/gochain/gochain/v3/core/types"
 )
 
 // Seeder issues funds to sender accounts and collects funds from inactive accounts.
