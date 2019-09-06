@@ -118,12 +118,8 @@ func (c *Chainload) Run() error {
 	}
 	log.Printf("Started seeders\tcount=%d\n", seeders)
 
-	sendBlock, err := waitBlocks(ctx, c.nodes[0].Client, 0)
-	if err != nil {
-		// Cancelled.
-		return err
-	}
-	log.Printf("Starting Senders\tcount=%d block=%d\n", c.config.Senders, sendBlock)
+	start := time.Now()
+	log.Printf("Starting Senders\tcount=%d start=%s\n", c.config.Senders, start)
 	stats := NewReporter()
 	if c.config.Duration != 0 {
 		t := time.AfterFunc(c.config.Duration, func() {
@@ -209,16 +205,7 @@ loop:
 	s := reports.Add(stats.Report())
 	log.Println("Final Status:")
 	log.Println(s)
-
-	bigBlock, err := c.nodes[0].LatestBlockNumber(ctx)
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
-	if err != nil {
-		log.Printf("Failed to get block number\terr=%q\n", err)
-	} else {
-		log.Printf("Ran between blocks\tstart=%d end=%d\n", sendBlock, bigBlock)
-	}
+	log.Printf("Ran between\tstart=%s end=%s\n", start, time.Now())
 	return nil
 }
 
