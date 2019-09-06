@@ -3,10 +3,8 @@ version: 2.0
 defaults: &defaults
   working_directory: /go/src/github.com/gochain-io/chainload
   docker:
-      - image: circleci/golang:1.12
+      - image: circleci/golang:1.13
   environment: # apparently expansion doesn't work here yet: https://discuss.circleci.com/t/environment-variable-expansion-in-working-directory/11322
-    - GOVERSION=1.12
-    - GO111MODULE=on
     - OS=linux
     - ARCH=amd64
 
@@ -15,18 +13,6 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - run:
-          name: update Go
-          command: |
-            go version
-            go env GOROOT
-            mkdir tmp
-            cd tmp
-            sudo rm -rf /usr/local/go
-            wget https://storage.googleapis.com/golang/go$GOVERSION.$OS-$ARCH.tar.gz
-            sudo tar -C /usr/local -xzf go$GOVERSION.$OS-$ARCH.tar.gz
-            export PATH=$PATH:$HOME/go/bin
-      - run: go version
       - run: make build
       - run: make test
   release:
