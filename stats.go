@@ -24,9 +24,17 @@ type Report struct {
 	errs int64         // Failed transaction sends.
 }
 
+func (r *Report) DurSeconds() int64 {
+	ds := r.dur / time.Second
+	if ds == 0 {
+		return 1
+	}
+	return int64(ds)
+}
+
 func (r *Report) String() string {
-	return fmt.Sprintf("dur=%s txs=%d errs=%d tps=%d",
-		r.dur.Round(time.Second), r.txs, r.errs, r.txs/int64(r.dur/time.Second))
+	return fmt.Sprintf("dur=%s txs=%d errs=%d tps=%.2f",
+		r.dur.Round(time.Millisecond), r.txs, r.errs, float64(r.txs)/r.dur.Seconds())
 }
 
 type Status struct {
