@@ -205,7 +205,9 @@ loop:
 	s := reports.Add(stats.Report())
 	log.Println("Final Status:")
 	log.Println(s)
-	log.Printf("Ran between\tstart=%s end=%s\n", start, time.Now())
+	end := time.Now()
+	dur := end.Sub(start)
+	log.Printf("Ran for %s\tstart=%s end=%s\n", dur.Round(time.Second), start.Format(time.RFC3339), end.Format(time.RFC3339))
 	return nil
 }
 

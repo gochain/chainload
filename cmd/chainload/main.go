@@ -61,8 +61,10 @@ func main() {
 	// pprof
 	runtime.SetBlockProfileRate(1000000)
 	runtime.SetMutexProfileFraction(1000000)
+	server := &http.Server{Addr: config.PprofAddr}
+	defer server.Close()
 	go func() {
-		log.Println(http.ListenAndServe(config.PprofAddr, nil))
+		log.Println("ListenAndServe stopped:", server.ListenAndServe())
 	}()
 
 	log.Println("Version:", version)
