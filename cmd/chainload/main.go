@@ -3,14 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"runtime"
 	"time"
 
+	"github.com/blendle/zapdriver"
 	"github.com/gochain-io/chainload"
+	"go.uber.org/zap"
 )
 
 var version string
@@ -21,7 +22,10 @@ func init() {
 	}
 }
 
-var config = chainload.Config{}
+var (
+	config chainload.Config
+	logCfg zap.Config
+)
 
 func init() {
 	flag.Uint64Var(&config.Id, "id", 1234, "Id")
@@ -34,28 +38,42 @@ func init() {
 	flag.Uint64Var(&config.Gas, "gas", 200000, "Gas (approximate)")
 	flag.Uint64Var(&config.Amount, "amount", 10, "tx Amount (approximate)")
 	flag.StringVar(&config.PprofAddr, "pprof", ":6060", "pprof addr")
-	flag.BoolVar(&config.Verbose, "v", false, "Verbose logging")
 	flag.DurationVar(&config.Variable, "variable", 30*time.Second, "Variable transaction rate")
+
+	humanLogs := flag.Bool("human", true, "Human readable logs")
+	flag.Parse()
+	if *humanLogs {
+		logCfg = zap.NewDevelopmentConfig()
+	} else {
+		logCfg = zapdriver.NewProductionConfig()
+		logCfg.EncoderConfig.TimeKey = "timestamp"
+	}
 }
 
 func main() {
-	if fi, err := os.Stdin.Stat(); err != nil {
-		log.Fatalf("Failed to check stdin: %v", err)
-	} else if fi.Size() > 0 {
-		log.Fatalf("Illegal input: non-empty stdin")
+	start := time.Now()
+	lgr, err := logCfg.Build()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create logger: %v\n", err)
+		os.Exit(1)
 	}
-	flag.Parse()
+
+	if fi, err := os.Stdin.Stat(); err != nil {
+		lgr.Fatal("Failed to check stdin", zap.Error(err))
+	} else if fi.Size() > 0 {
+		lgr.Fatal("Illegal input: non-empty stdin")
+	}
 	if args := flag.Args(); len(args) > 0 {
 		if len(args) == 1 && args[0] == "version" {
 			fmt.Fprintln(os.Stdout, "chainload version:", version)
 			os.Exit(0)
 		}
-		log.Fatalf("Illegal extra arguments: %v", flag.Args())
+		lgr.Fatal("Illegal extra arguments", zap.Strings("args", flag.Args()))
 	}
 
-	cl, err := chainload.NewChainload(config)
+	cl, err := config.NewChainload(lgr)
 	if err != nil {
-		log.Fatalf("Failed to set up\terr=%q\n", err)
+		lgr.Fatal("Failed to create Chainload", zap.Error(err))
 	}
 
 	// pprof
@@ -64,13 +82,18 @@ func main() {
 	server := &http.Server{Addr: config.PprofAddr}
 	defer server.Close()
 	go func() {
-		log.Println("ListenAndServe stopped:", server.ListenAndServe())
+		err := server.ListenAndServe()
+		if err != nil {
+			lgr.Error("ListenAndServe stopped", zap.Error(err))
+			return
+		}
+		lgr.Info("ListenAndServe stopped")
 	}()
 
-	log.Println("Version:", version)
-	log.Println("Starting execution:", &config)
+	lgr.Info("Staring Chainload", zap.String("version", version), zap.Object("config", &config))
 	err = cl.Run()
 	if err != nil {
-		log.Fatalf("Failed\terr=%q\n", err)
+		lgr.Fatal("Fatal error", zap.Error(err), zap.Duration("runtime", time.Since(start)))
 	}
+	lgr.Info("Shutting down", zap.Duration("runtime", time.Since(start)))
 }

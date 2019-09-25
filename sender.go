@@ -3,7 +3,6 @@ package chainload
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/big"
 	"math/rand"
 	"strings"
@@ -12,10 +11,13 @@ import (
 	"github.com/gochain/gochain/v3/accounts"
 	"github.com/gochain/gochain/v3/common"
 	"github.com/gochain/gochain/v3/core/types"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type Sender struct {
 	*Node
+	lgr       *zap.Logger
 	amount    uint64
 	cycle     time.Duration
 	Number    int
@@ -36,23 +38,26 @@ func (s *Sender) String() string {
 // assignAcct assigns an account from AccountStore, refunding and replacing acct
 // if it already exists.
 func (s *Sender) assignAcct(ctx context.Context) {
+	var old *accounts.Account
 	if s.acct != nil {
+		old = s.acct
 		amount, err := s.refund(ctx, *s.acct, s.nonce, *s.AccountStore.RandSeed())
 		if ctx.Err() != nil {
 			return
 		}
 		if err != nil {
-			log.Printf("Failed to refund account\t%s err=%q\n", s, err)
-		} else if amount > 0 {
+			s.lgr.Warn("Failed to refund account", zap.Error(err))
+		} else if amount.Cmp(big.NewInt(0)) == 1 {
 			s.nonce++
-			log.Printf("Refunded account\t%s amount=%d", s, amount)
+			s.lgr.Info("Refunded account", zapBig("amount", amount))
 		}
 		s.AccountStore.Return(s.acct, s.Node.Number, s.nonce)
 	}
-	bo := backOff{maxWait: 30 * time.Second, wait: 1 * time.Second}
+	bo := backOff{maxWait: 30 * time.Second, wait: 1 * time.Second, lgr: s.lgr}
 
 	if !bo.do(ctx, func() (err error) {
 		s.acct, s.nonce, err = s.AccountStore.Next(ctx, s.Node.Number)
+		s.setLgr()
 		if err != nil {
 			err = fmt.Errorf("failed to assign sender account\tsender=%d err=%q", s.Number, err)
 		}
@@ -64,6 +69,7 @@ func (s *Sender) assignAcct(ctx context.Context) {
 		if !bo.do(ctx, func() (err error) {
 			s.acct, err = s.AccountStore.New(ctx)
 			s.nonce = 0
+			s.setLgr()
 			if err != nil {
 				err = fmt.Errorf("failed to create sender account\tsender=%d err=%q", s.Number, err)
 			}
@@ -83,9 +89,9 @@ func (s *Sender) assignAcct(ctx context.Context) {
 		}
 	}
 
-	var pb *big.Int
+	var bal *big.Int
 	if !bo.doTimed(ctx, pendingBalanceAtTimer, func() (err error) {
-		pb, err = s.PendingBalanceAt(ctx, s.acct.Address)
+		bal, err = s.PendingBalanceAt(ctx, s.acct.Address)
 		if err != nil {
 			err = fmt.Errorf("failed to get sender balance\t%s err=%q", s, err)
 		}
@@ -93,17 +99,19 @@ func (s *Sender) assignAcct(ctx context.Context) {
 	}) {
 		return
 	}
-	bal := pb.Uint64()
-
-	log.Printf("Assigned sender account\t%s balance=%d\n", s, bal)
+	if old != nil {
+		s.lgr.Info("Changed account", zapBig("balance", bal), zap.Stringer("old", old.Address))
+	} else {
+		s.lgr.Info("Assigned account", zapBig("balance", bal))
+	}
 
 	fee := new(big.Int).Mul(s.gasPrice, new(big.Int).SetUint64(s.gas))
-	amt := fee.Mul(fee, new(big.Int).SetUint64(1000)).Uint64()
-	if bal < amt {
-		amt = amt - bal
+	need := fee.Mul(fee, new(big.Int).SetUint64(1000))
+	if bal.Cmp(need) == -1 {
+		diff := new(big.Int).Sub(need, bal)
 		s.transition(senderSeedState)
 		if !bo.do(ctx, func() error {
-			err := s.requestSeed(ctx, amt)
+			err := s.requestSeed(ctx, diff)
 			if err != nil {
 				return fmt.Errorf("failed to seed account\t%s err=%q", s, err)
 			}
@@ -111,10 +119,10 @@ func (s *Sender) assignAcct(ctx context.Context) {
 		}) {
 			return
 		}
-		if _, err := waitBlocks(ctx, s.Client, 5); err != nil {
+		if _, err := waitBlocks(ctx, s.lgr, s.Client, 5); err != nil {
 			return
 		}
-		log.Printf("Seeded account\t%s seed=%d balance=%d\n", s, amt, amt+bal)
+		s.lgr.Info("Seeded account", zapBig("amount", diff), zapBig("balance", need))
 		s.transition(senderAssignState)
 	}
 
@@ -127,12 +135,17 @@ func (s *Sender) assignAcct(ctx context.Context) {
 	}) {
 		return
 	}
-	if s.verbose {
-		log.Printf("Assigned sender receivers\t%s receivers=%s\n", s, receivers(s.recv))
-	}
+	s.lgr.Info("Assigned receivers", zap.Array("receivers", receivers(s.recv)))
 }
 
 type receivers []common.Address
+
+func (r receivers) MarshalLogArray(oe zapcore.ArrayEncoder) error {
+	for i := range r {
+		oe.AppendString(r[i].Str())
+	}
+	return nil
+}
 
 func (r receivers) String() string {
 	var b strings.Builder
@@ -145,12 +158,13 @@ func (r receivers) String() string {
 	return b.String()
 }
 
-func (s *Sender) requestSeed(ctx context.Context, amount uint64) error {
+func (s *Sender) requestSeed(ctx context.Context, amount *big.Int) error {
 	resp := make(chan error)
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	case s.SeedCh <- SeedReq{
+		//TODO use amount
 		Addr: s.acct.Address,
 		Resp: resp,
 	}:
@@ -163,7 +177,16 @@ func (s *Sender) requestSeed(ctx context.Context, amount uint64) error {
 	}
 }
 
+func (s *Sender) setLgr() {
+	if s.acct == nil {
+		s.lgr = s.Node.lgr.With(zap.String("account", "none"))
+	} else {
+		s.lgr = s.Node.lgr.With(zap.Stringer("account", s.acct.Address))
+	}
+}
+
 func (s *Sender) Send(ctx context.Context, txs <-chan struct{}, done func()) {
+	s.setLgr()
 	defer func() {
 		for range txs {
 		}
@@ -208,7 +231,7 @@ func (s *Sender) Send(ctx context.Context, txs <-chan struct{}, done func()) {
 }
 
 func (s *Sender) updateGasPrice(ctx context.Context) {
-	bo := backOff{maxWait: 30 * time.Second, wait: 1 * time.Second}
+	bo := backOff{maxWait: 30 * time.Second, wait: 1 * time.Second, lgr: s.lgr}
 	_ = bo.doTimed(ctx, suggestGasPriceTimer, func() (err error) {
 		s.gasPrice, err = s.Client.SuggestGasPrice(ctx)
 		if err != nil {
@@ -229,7 +252,7 @@ func (s *Sender) send(ctx context.Context) {
 	t := time.Now()
 	tx, err := s.AccountStore.SignTx(*s.acct, tx)
 	if err != nil {
-		log.Printf("Failed to sign tx\tsender=%d err=%q\n", s.Number, err)
+		s.lgr.Warn("Failed to sign tx", zap.Error(err))
 		s.transition(senderAssignState)
 		s.assignAcct(ctx)
 		s.transition(senderSendState)
@@ -254,12 +277,11 @@ func (s *Sender) send(ctx context.Context) {
 		return
 	}
 	sendTxErrMeter.Mark(1)
-	var print bool
 	var wait time.Duration
 	if msg := err.Error(); nonceErr(msg) {
-		log.Printf("Failed to send - updating nonce\t%s err=%q\n", s, err)
+		s.lgr.Warn("Failed to send - updating nonce", zap.Error(err))
 		old := s.nonce
-		bo := backOff{maxWait: 30 * time.Second, wait: 1 * time.Second}
+		bo := backOff{maxWait: 30 * time.Second, wait: 1 * time.Second, lgr: s.lgr}
 		if !bo.doTimed(ctx, pendingNonceAtTimer, func() (err error) {
 			s.nonce, err = s.Client.PendingNonceAt(ctx, s.acct.Address)
 			if err != nil {
@@ -269,26 +291,24 @@ func (s *Sender) send(ctx context.Context) {
 		}) {
 			return
 		}
-		log.Printf("Updated nonce\t%s old=%d new=%d\n", s, old, s.nonce)
+		s.lgr.Info("Updated nonce", zap.Uint64("nonce", s.nonce), zap.Uint64("old", old))
 		return
 	} else if msg == "transaction pool limit reached" {
-		print = true
 		wait = randBetweenDur(5*time.Second, 2*time.Minute)
 	} else if knownTxErr(msg) || lowFundsErr(msg) {
-		log.Printf("Abandoning account\t%s err=%s\n", s, msg)
+		s.lgr.Info("Abandoning account", zap.Error(err))
 		s.transition(senderAssignState)
 		s.assignAcct(ctx)
 		s.transition(senderSendState)
 		return
 	} else {
-		print = true
 		wait = randBetweenDur(5*time.Second, 30*time.Second)
 	}
-	if wait == 0 && (print || s.verbose) {
-		log.Printf("Failed to send\t%s err=%q\n", s, err)
+	if wait == 0 {
+		s.lgr.Warn("Failed to send", zap.Error(err))
 	}
 	if wait != 0 {
-		log.Printf("Pausing sender\t%s pause=%s err=%q\n", s, wait, err)
+		s.lgr.Info("Pausing sender", zap.Duration("wait", wait), zap.Error(err))
 		select {
 		case <-time.After(wait):
 		case <-ctx.Done():

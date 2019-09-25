@@ -18,4 +18,4 @@ FROM alpine
 RUN apk add --no-cache ca-certificates curl
 WORKDIR /chainload
 COPY --from=build-env /go/bin/chainload /usr/local/bin/chainload
-ENTRYPOINT ["chainload"]
+ENTRYPOINT ["chainload -human=false"]
