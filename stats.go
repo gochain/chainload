@@ -5,6 +5,7 @@ import (
 	"time"
 
 	metrics "github.com/rcrowley/go-metrics"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -24,6 +25,13 @@ type Report struct {
 	errs int64         // Failed transaction sends.
 }
 
+func (r *Report) MarshalLogObject(oe zapcore.ObjectEncoder) error {
+	oe.AddDuration("duration", r.dur)
+	oe.AddInt64("txSends", r.txs)
+	oe.AddInt64("txFails", r.errs)
+	return nil
+}
+
 func (r *Report) DurSeconds() int64 {
 	ds := r.dur / time.Second
 	if ds == 0 {
@@ -39,6 +47,13 @@ func (r *Report) String() string {
 
 type Status struct {
 	latest, recent, total Report
+}
+
+func (s *Status) MarshalLogObject(oe zapcore.ObjectEncoder) error {
+	oe.AddObject("latest", &s.latest)
+	oe.AddObject("latest", &s.recent)
+	oe.AddObject("latest", &s.total)
+	return nil
 }
 
 func (s *Status) String() string {

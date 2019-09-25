@@ -3,7 +3,6 @@ package chainload
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/big"
 	"math/rand"
 	"os"
@@ -15,6 +14,8 @@ import (
 
 	"github.com/gochain/gochain/v3/accounts/keystore"
 	"github.com/gochain/gochain/v3/goclient"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type Config struct {
@@ -28,23 +29,38 @@ type Config struct {
 	Gas       uint64
 	Amount    uint64
 	PprofAddr string
-	Verbose   bool
 	Variable  time.Duration
+}
+
+func (c *Config) MarshalLogObject(oe zapcore.ObjectEncoder) error {
+	oe.AddUint64("id", c.Id)
+	oe.AddString("urls", c.UrlsCSV)
+	oe.AddInt("tps", c.TPS)
+	oe.AddInt("senders", c.Senders)
+	oe.AddDuration("cycle", c.Cycle)
+	oe.AddDuration("duration", c.Duration)
+	// don't log password
+	oe.AddUint64("gas", c.Gas)
+	oe.AddUint64("amount", c.Amount)
+	oe.AddString("pprofAddr", c.PprofAddr)
+	oe.AddDuration("variable", c.Variable)
+	return nil
 }
 
 func (c *Config) String() string {
 	return fmt.Sprintf("Id=%d urls=%q TPS=%d Senders=%d Cycle=%s Duration=%s Password=%q Gas=%d Amount=%d "+
-		"pprof=%q Verbose=%t Variable=%s",
+		"pprof=%q Variable=%s",
 		c.Id, c.UrlsCSV, c.TPS, c.Senders, c.Cycle, c.Duration, c.Password, c.Gas,
-		c.Amount, c.PprofAddr, c.Verbose, c.Variable)
+		c.Amount, c.PprofAddr, c.Variable)
 }
 
 type Chainload struct {
-	config Config
+	config *Config
+	lgr    *zap.Logger
 	nodes  []*Node
 }
 
-func NewChainload(config Config) (*Chainload, error) {
+func (config *Config) NewChainload(lgr *zap.Logger) (*Chainload, error) {
 	if config.TPS < 1 {
 		return nil, fmt.Errorf("illegal TPS argument: %d", config.TPS)
 	}
@@ -60,12 +76,12 @@ func NewChainload(config Config) (*Chainload, error) {
 		url := urls[i]
 		client, err := goclient.Dial(url)
 		if err != nil {
-			log.Printf("Failed to dial\turl=%s err=%q\n", url, err)
+			lgr.Warn("Failed to dial", zap.String("url", url), zap.Error(err))
 		} else {
 			nodes = append(nodes, &Node{
+				lgr:          lgr.With(zap.Int("node", i)),
 				Number:       i,
 				gas:          config.Gas,
-				verbose:      config.Verbose,
 				Client:       client,
 				AccountStore: as,
 				SeedCh:       make(chan SeedReq),
@@ -75,7 +91,7 @@ func NewChainload(config Config) (*Chainload, error) {
 	if len(nodes) == 0 {
 		return nil, fmt.Errorf("failed to dial all nodes\turls=%d", len(urls))
 	}
-	return &Chainload{config: config, nodes: nodes}, nil
+	return &Chainload{config: config, lgr: lgr, nodes: nodes}, nil
 }
 
 func (c *Chainload) Run() error {
@@ -93,12 +109,12 @@ func (c *Chainload) Run() error {
 	for _, node := range c.nodes {
 		acct, err := node.NextSeed()
 		if err != nil {
-			log.Printf("Failed to get seeder account\terr=%q\n", err)
+			c.lgr.Warn("Failed to get seeder account", zap.Error(err))
 		}
 		if err != nil || acct == nil {
 			acct, err = node.New(ctx)
 			if err != nil {
-				log.Printf("Failed to create new seeder account\terr=%q\n", err)
+				c.lgr.Warn("Failed to create new seeder account", zap.Error(err))
 				continue
 			}
 		}
@@ -116,10 +132,10 @@ func (c *Chainload) Run() error {
 	if seeders == 0 {
 		return fmt.Errorf("failed to create any seeders\tcount=%d", len(c.nodes))
 	}
-	log.Printf("Started seeders\tcount=%d\n", seeders)
+	c.lgr.Info("Started seeders", zap.Int("count", seeders))
 
 	start := time.Now()
-	log.Printf("Starting Senders\tcount=%d start=%s\n", c.config.Senders, start)
+	c.lgr.Info("Starting senders", zap.Int("count", c.config.Senders))
 	stats := NewReporter()
 	if c.config.Duration != 0 {
 		t := time.AfterFunc(c.config.Duration, func() {
@@ -137,13 +153,23 @@ func (c *Chainload) Run() error {
 		txsOut = make(chan struct{}, c.config.TPS)
 		go func() {
 			defer close(txsOut)
-			next := time.Now()
-			for tx := range txsIn {
-				if time.Until(next) <= 0 {
-					time.Sleep(randBetweenDur(0, c.config.Variable))
-					next = time.Now().Add(randBetweenDur(c.config.Variable/2, c.config.Variable))
+			nextPause := time.Now()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case tx := <-txsIn:
+					if time.Until(nextPause) <= 0 {
+						wait := randBetweenDur(0, c.config.Variable)
+						select {
+						case <-ctx.Done():
+							return
+						case <-time.After(wait):
+						}
+						nextPause = time.Now().Add(randBetweenDur(c.config.Variable/2, c.config.Variable))
+					}
+					txsOut <- tx
 				}
-				txsOut <- tx
 			}
 		}()
 	}
@@ -188,8 +214,7 @@ loop:
 			break loop
 		case <-report.C:
 			s := reports.Add(stats.Report())
-			log.Println("Status:")
-			log.Println(s)
+			c.lgr.Info("Status", zap.Object("status", s))
 		case <-batch.C:
 			batchSize := batches[cnt%len(batches)]
 			for i := 0; i < batchSize; i++ {
@@ -203,15 +228,12 @@ loop:
 	wg.Wait()
 
 	s := reports.Add(stats.Report())
-	log.Println("Final Status:")
-	log.Println(s)
 	end := time.Now()
-	dur := end.Sub(start)
-	log.Printf("Ran for %s\tstart=%s end=%s\n", dur.Round(time.Second), start.Format(time.RFC3339), end.Format(time.RFC3339))
+	c.lgr.Info("Final Status", zap.Object("status", s), zap.Time("start", start), zap.Time("end", end))
 	return nil
 }
 
-func waitBlocks(ctx context.Context, client *goclient.Client, blocks uint64) (uint64, error) {
+func waitBlocks(ctx context.Context, lgr *zap.Logger, client *goclient.Client, blocks uint64) (uint64, error) {
 	var first *uint64
 	for {
 		t := time.Now()
@@ -221,7 +243,7 @@ func waitBlocks(ctx context.Context, client *goclient.Client, blocks uint64) (ui
 		}
 		latestBlockNumberTimer.UpdateSince(t)
 		if err != nil {
-			log.Printf("Failed to get block number\terr=%q\n", err)
+			lgr.Warn("Failed to get latest block number", zap.Error(err))
 		} else {
 			current := big.Uint64()
 			if first == nil {

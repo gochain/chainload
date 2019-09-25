@@ -9,29 +9,30 @@ import (
 	"github.com/gochain/gochain/v3/common"
 	"github.com/gochain/gochain/v3/core/types"
 	"github.com/gochain/gochain/v3/goclient"
+	"go.uber.org/zap"
 )
 
 type Node struct {
-	Number  int
-	gas     uint64
-	verbose bool
+	lgr    *zap.Logger
+	Number int
+	gas    uint64
 	*goclient.Client
 	*AccountStore
 	SeedCh chan SeedReq
 }
 
-func (n *Node) refund(ctx context.Context, acct accounts.Account, nonce uint64, seed common.Address) (uint64, error) {
+func (n *Node) refund(ctx context.Context, acct accounts.Account, nonce uint64, seed common.Address) (*big.Int, error) {
 	t := time.Now()
 	bal, err := n.PendingBalanceAt(ctx, acct.Address)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	pendingBalanceAtTimer.UpdateSince(t)
 
 	t = time.Now()
 	gasPrice, err := n.SuggestGasPrice(ctx)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	suggestGasPriceTimer.UpdateSince(t)
 
@@ -40,14 +41,14 @@ func (n *Node) refund(ctx context.Context, acct accounts.Account, nonce uint64, 
 	amount.Mul(new(big.Int).SetUint64(gas), gasPrice)
 	amount.Sub(bal, &amount)
 	if amount.Cmp(new(big.Int)) < 1 {
-		return 0, nil
+		return nil, nil
 	}
 	tx := types.NewTransaction(nonce, seed, &amount, gas, gasPrice, nil)
 
 	t = time.Now()
 	tx, err = n.SignTx(acct, tx)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	signTxTimer.UpdateSince(t)
 
@@ -55,9 +56,9 @@ func (n *Node) refund(ctx context.Context, acct accounts.Account, nonce uint64, 
 	err = n.SendTransaction(ctx, tx)
 	if err != nil {
 		sendTxErrMeter.Mark(1)
-		return 0, err
+		return nil, err
 	}
 	sendTxTimer.UpdateSince(t)
 
-	return amount.Uint64(), nil
+	return &amount, nil
 }

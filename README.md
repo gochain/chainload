@@ -37,7 +37,6 @@ Usage of chainload:
     	transactions per second (default 1)
   -urls string
     	csv of urls (default "http://localhost:8545")
-  -v	verbose logging
 ```
 
 Examples:

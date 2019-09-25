@@ -2,15 +2,16 @@ package chainload
 
 import (
 	"context"
-	"log"
 	"math/rand"
 	"time"
 
 	metrics "github.com/rcrowley/go-metrics"
+	"go.uber.org/zap"
 )
 
 type backOff struct {
 	wait, maxWait time.Duration
+	lgr           *zap.Logger
 }
 
 func (b *backOff) do(ctx context.Context, fn func() error) bool {
@@ -28,7 +29,7 @@ func (b *backOff) doTimed(ctx context.Context, timer metrics.Timer, fn func() er
 		if wait = randBetweenDur(3/2*wait, 5/2*wait); wait > b.maxWait {
 			wait = b.maxWait
 		}
-		log.Printf("Pausing: %s attempt=%d pause=%s\n", err, errs, wait)
+		b.lgr.Warn("Operation failed - pausing", zap.Duration("wait", wait), zap.Int("attempt", errs), zap.Error(err))
 		select {
 		case <-time.After(wait):
 			t = time.Now()
