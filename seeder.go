@@ -24,10 +24,6 @@ type Seeder struct {
 	stateTracker
 }
 
-func (s *Seeder) String() string {
-	return fmt.Sprintf("node=%d seeder=%s", s.Number, s.acct.Address.Hex())
-}
-
 type SeedReq struct {
 	Addr common.Address
 	Resp chan<- error
@@ -36,7 +32,7 @@ type SeedReq struct {
 func (s *Seeder) Run(ctx context.Context, done func()) {
 	defer done()
 
-	s.lgr = s.Node.lgr.With(zap.Stringer("account", s.acct.Address))
+	s.lgr = s.Node.lgr.With(seederLabel, zap.Stringer("account", s.acct.Address))
 	s.lgr.Info("Starting seeder")
 
 	defer s.transition(nil)
@@ -51,7 +47,7 @@ func (s *Seeder) Run(ctx context.Context, done func()) {
 		if !bo.doTimed(ctx, suggestGasPriceTimer, func() (err error) {
 			gasPrice, err = s.SuggestGasPrice(ctx)
 			if err != nil {
-				err = fmt.Errorf("failed to get gas price\t%s err=%q", s, err)
+				err = fmt.Errorf("failed to get gas price: %v", err)
 			}
 			return
 		}) {
@@ -64,7 +60,7 @@ func (s *Seeder) Run(ctx context.Context, done func()) {
 			var c *big.Int
 			c, err = s.ensureFunds(ctx, s.lgr, amt)
 			if err != nil {
-				err = fmt.Errorf("failed to collect enough to seed\t%s collected=%d err=%q\n", s, c, err)
+				err = fmt.Errorf("failed to collect enough to seed: collected %s: %v", c, err)
 			}
 			return
 		}) {
@@ -101,7 +97,7 @@ func (s *Seeder) Run(ctx context.Context, done func()) {
 					if !bo.doTimed(ctx, pendingNonceAtTimer, func() (err error) {
 						s.nonce, err = s.PendingNonceAt(ctx, s.acct.Address)
 						if err != nil {
-							err = fmt.Errorf("failed to get nonce\t%s err=%q", s, err)
+							err = fmt.Errorf("failed to get nonce: %v", err)
 						}
 						return
 					}) {
@@ -150,7 +146,7 @@ func (s *Seeder) ensureFunds(ctx context.Context, lgr *zap.Logger, ensure *big.I
 	if !bo.doTimed(ctx, pendingBalanceAtTimer, func() (err error) {
 		bal, err = s.PendingBalanceAt(ctx, s.acct.Address)
 		if err != nil {
-			err = fmt.Errorf("failed to get balance\t%s err=%q", s, err)
+			err = fmt.Errorf("failed to get balance: %v", err)
 		}
 		return
 	}) {
@@ -162,7 +158,7 @@ func (s *Seeder) ensureFunds(ctx context.Context, lgr *zap.Logger, ensure *big.I
 		if !bo.doTimed(ctx, pendingNonceAtTimer, func() (err error) {
 			s.nonce, err = s.PendingNonceAt(ctx, s.acct.Address)
 			if err != nil {
-				err = fmt.Errorf("failed to get nonce\t%s err=%q", s, err)
+				err = fmt.Errorf("failed to get nonce: %v", err)
 			}
 			return
 		}) {

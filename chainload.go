@@ -47,13 +47,6 @@ func (c *Config) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	return nil
 }
 
-func (c *Config) String() string {
-	return fmt.Sprintf("Id=%d urls=%q TPS=%d Senders=%d Cycle=%s Duration=%s Password=%q Gas=%d Amount=%d "+
-		"pprof=%q Variable=%s",
-		c.Id, c.UrlsCSV, c.TPS, c.Senders, c.Cycle, c.Duration, c.Password, c.Gas,
-		c.Amount, c.PprofAddr, c.Variable)
-}
-
 type Chainload struct {
 	config *Config
 	lgr    *zap.Logger
@@ -79,7 +72,7 @@ func (config *Config) NewChainload(lgr *zap.Logger) (*Chainload, error) {
 			lgr.Warn("Failed to dial", zap.String("url", url), zap.Error(err))
 		} else {
 			nodes = append(nodes, &Node{
-				lgr:          lgr.With(zap.Int("node", i)),
+				lgr:          lgr.With(zap.Int("node", i), zap.String("url", url)),
 				Number:       i,
 				gas:          config.Gas,
 				Client:       client,
@@ -89,7 +82,7 @@ func (config *Config) NewChainload(lgr *zap.Logger) (*Chainload, error) {
 		}
 	}
 	if len(nodes) == 0 {
-		return nil, fmt.Errorf("failed to dial all nodes\turls=%d", len(urls))
+		return nil, fmt.Errorf("failed to dial all %d urls: %v", len(urls), urls)
 	}
 	return &Chainload{config: config, lgr: lgr, nodes: nodes}, nil
 }
@@ -130,7 +123,7 @@ func (c *Chainload) Run() error {
 		return ctx.Err()
 	}
 	if seeders == 0 {
-		return fmt.Errorf("failed to create any seeders\tcount=%d", len(c.nodes))
+		return fmt.Errorf("failed to create any seeders for %d nodes", len(c.nodes))
 	}
 	c.lgr.Info("Started seeders", zap.Int("count", seeders))
 

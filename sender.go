@@ -2,6 +2,7 @@ package chainload
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -31,10 +32,6 @@ type Sender struct {
 	stateTracker
 }
 
-func (s *Sender) String() string {
-	return fmt.Sprintf("node=%d sender=%d acct=%s", s.Node.Number, s.Number, s.acct.Address.Hex())
-}
-
 // assignAcct assigns an account from AccountStore, refunding and replacing acct
 // if it already exists.
 func (s *Sender) assignAcct(ctx context.Context) {
@@ -59,7 +56,7 @@ func (s *Sender) assignAcct(ctx context.Context) {
 		s.acct, s.nonce, err = s.AccountStore.Next(ctx, s.Node.Number)
 		s.setLgr()
 		if err != nil {
-			err = fmt.Errorf("failed to assign sender account\tsender=%d err=%q", s.Number, err)
+			err = fmt.Errorf("failed to assign sender account: %v", err)
 		}
 		return
 	}) {
@@ -71,7 +68,7 @@ func (s *Sender) assignAcct(ctx context.Context) {
 			s.nonce = 0
 			s.setLgr()
 			if err != nil {
-				err = fmt.Errorf("failed to create sender account\tsender=%d err=%q", s.Number, err)
+				err = fmt.Errorf("failed to create sender account: %v", err)
 			}
 			return
 		}) {
@@ -81,7 +78,7 @@ func (s *Sender) assignAcct(ctx context.Context) {
 		if !bo.doTimed(ctx, pendingNonceAtTimer, func() (err error) {
 			s.nonce, err = s.Client.PendingNonceAt(ctx, s.acct.Address)
 			if err != nil {
-				err = fmt.Errorf("failed to get nonce\t%s err=%q", s, err)
+				err = fmt.Errorf("failed to get nonce: %v", err)
 			}
 			return
 		}) {
@@ -93,7 +90,7 @@ func (s *Sender) assignAcct(ctx context.Context) {
 	if !bo.doTimed(ctx, pendingBalanceAtTimer, func() (err error) {
 		bal, err = s.PendingBalanceAt(ctx, s.acct.Address)
 		if err != nil {
-			err = fmt.Errorf("failed to get sender balance\t%s err=%q", s, err)
+			err = fmt.Errorf("failed to get sender balance: %v", err)
 		}
 		return
 	}) {
@@ -113,7 +110,7 @@ func (s *Sender) assignAcct(ctx context.Context) {
 		if !bo.do(ctx, func() error {
 			err := s.requestSeed(ctx, diff)
 			if err != nil {
-				return fmt.Errorf("failed to seed account\t%s err=%q", s, err)
+				return fmt.Errorf("failed to seed account: %v", err)
 			}
 			return nil
 		}) {
@@ -129,7 +126,7 @@ func (s *Sender) assignAcct(ctx context.Context) {
 	if !bo.do(ctx, func() error {
 		s.recv = s.AccountStore.NextRecv(s.acct.Address, rand.Intn(10)+1)
 		if len(s.recv) == 0 {
-			return fmt.Errorf("failed to assign sender receivers\t%s receivers=%v", s, receivers(s.recv))
+			return errors.New("failed to assign sender receivers")
 		}
 		return nil
 	}) {
@@ -178,10 +175,11 @@ func (s *Sender) requestSeed(ctx context.Context, amount *big.Int) error {
 }
 
 func (s *Sender) setLgr() {
+	lgr := s.Node.lgr.With(senderLabel, zap.Int("sender", s.Number))
 	if s.acct == nil {
-		s.lgr = s.Node.lgr.With(zap.String("account", "none"))
+		s.lgr = lgr.With(zap.String("account", "none"))
 	} else {
-		s.lgr = s.Node.lgr.With(zap.Stringer("account", s.acct.Address))
+		s.lgr = lgr.With(zap.Stringer("account", s.acct.Address))
 	}
 }
 
@@ -235,7 +233,7 @@ func (s *Sender) updateGasPrice(ctx context.Context) {
 	_ = bo.doTimed(ctx, suggestGasPriceTimer, func() (err error) {
 		s.gasPrice, err = s.Client.SuggestGasPrice(ctx)
 		if err != nil {
-			err = fmt.Errorf("failed to get gas price\tsender=%d err=%q\n", s.Number, err)
+			err = fmt.Errorf("failed to get gas price: %v", err)
 		}
 		return
 	})
@@ -285,7 +283,7 @@ func (s *Sender) send(ctx context.Context) {
 		if !bo.doTimed(ctx, pendingNonceAtTimer, func() (err error) {
 			s.nonce, err = s.Client.PendingNonceAt(ctx, s.acct.Address)
 			if err != nil {
-				err = fmt.Errorf("failed to get nonce\t%s err=%q", s, err)
+				err = fmt.Errorf("failed to get nonce: %v", err)
 			}
 			return
 		}) {
