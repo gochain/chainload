@@ -1,7 +1,6 @@
 package chainload
 
 import (
-	"fmt"
 	"time"
 
 	metrics "github.com/rcrowley/go-metrics"
@@ -27,22 +26,14 @@ type Report struct {
 
 func (r *Report) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	oe.AddDuration("duration", r.dur)
-	oe.AddInt64("txSends", r.txs)
-	oe.AddInt64("txFails", r.errs)
+	oe.AddInt64("txs", r.txs)
+	oe.AddInt64("errs", r.errs)
+	oe.AddFloat64("tps", r.TPS())
 	return nil
 }
 
-func (r *Report) DurSeconds() int64 {
-	ds := r.dur / time.Second
-	if ds == 0 {
-		return 1
-	}
-	return int64(ds)
-}
-
-func (r *Report) String() string {
-	return fmt.Sprintf("dur=%s txs=%d errs=%d tps=%.2f",
-		r.dur.Round(time.Millisecond), r.txs, r.errs, float64(r.txs)/r.dur.Seconds())
+func (r *Report) TPS() float64 {
+	return float64(r.txs) / r.dur.Seconds()
 }
 
 type Status struct {
@@ -54,10 +45,6 @@ func (s *Status) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	oe.AddObject("latest", &s.recent)
 	oe.AddObject("latest", &s.total)
 	return nil
-}
-
-func (s *Status) String() string {
-	return fmt.Sprintf("total\t%s\nrecent\t%s\nlatest\t%s", &s.total, &s.recent, &s.latest)
 }
 
 // Reporter tracks statistics and emits reports for an execution.

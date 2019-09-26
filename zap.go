@@ -4,7 +4,13 @@ import (
 	"encoding/json"
 	"math/big"
 
+	"github.com/blendle/zapdriver"
 	"go.uber.org/zap"
+)
+
+var (
+	senderLabel = zapdriver.Label("accountType", "sender")
+	seederLabel = zapdriver.Label("accountType", "seeder")
 )
 
 // zapBig returns a Field which will encode as a
