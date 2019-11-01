@@ -46,7 +46,6 @@ func init() {
 		logCfg = zap.NewDevelopmentConfig()
 	} else {
 		logCfg = zapdriver.NewProductionConfig()
-		logCfg.EncoderConfig.TimeKey = "timestamp"
 	}
 }
 
