@@ -70,16 +70,25 @@ func (config *Config) NewChainload(lgr *zap.Logger) (*Chainload, error) {
 		client, err := goclient.Dial(url)
 		if err != nil {
 			lgr.Warn("Failed to dial", zap.String("url", url), zap.Error(err))
-		} else {
-			nodes = append(nodes, &Node{
-				lgr:          lgr.With(zap.Int("node", i), zap.String("url", url)),
-				Number:       i,
-				gas:          config.Gas,
-				Client:       client,
-				AccountStore: as,
-				SeedCh:       make(chan SeedReq),
-			})
+			continue
 		}
+		chainID, err := client.ChainID(context.Background())
+		if err != nil {
+			lgr.Warn("Failed to check chain ID", zap.String("url", url), zap.Error(err))
+			continue
+		} else if chainID == nil || config.Id != chainID.Uint64() {
+			lgr.Warn("Wrong chain ID", zap.Uint64("configID", config.Id),
+				zap.Uint64("nodeID", chainID.Uint64()), zap.String("url", url), zap.Error(err))
+			continue
+		}
+		nodes = append(nodes, &Node{
+			lgr:          lgr.With(zap.Int("node", i), zap.String("url", url)),
+			Number:       i,
+			gas:          config.Gas,
+			Client:       client,
+			AccountStore: as,
+			SeedCh:       make(chan SeedReq),
+		})
 	}
 	if len(nodes) == 0 {
 		return nil, fmt.Errorf("failed to dial all %d urls: %v", len(urls), urls)
