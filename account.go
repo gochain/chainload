@@ -36,6 +36,7 @@ func NewAccountStore(ks *keystore.KeyStore, chainID *big.Int, pass string) *Acco
 		ks:         ks,
 		ksAccts:    ks.Accounts(),
 		chainID:    chainID,
+		pass:       pass,
 		ksAcctsSet: make(map[common.Address]struct{}),
 		pools:      make(map[int]map[common.Address]acctNonce),
 		seeds:      make(map[common.Address]struct{}),
