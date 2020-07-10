@@ -28,7 +28,6 @@ jobs:
             ./tmp/google-cloud-sdk/install.sh -q
       - deploy:
           command: |
-            echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
             echo $GOOGLE_AUTH | docker login -u _json_key --password-stdin https://gcr.io
             echo $GOOGLE_AUTH > ${HOME}/gcloud-service-key.json
             make release
