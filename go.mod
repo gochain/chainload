@@ -5,7 +5,6 @@ go 1.13
 require (
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/blendle/zapdriver v1.2.1
-	github.com/btcsuite/btcd v0.20.0-beta // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
