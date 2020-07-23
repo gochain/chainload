@@ -42,8 +42,8 @@ type Status struct {
 
 func (s *Status) MarshalLogObject(oe zapcore.ObjectEncoder) error {
 	oe.AddObject("latest", &s.latest)
-	oe.AddObject("latest", &s.recent)
-	oe.AddObject("latest", &s.total)
+	oe.AddObject("recent", &s.recent)
+	oe.AddObject("total", &s.total)
 	return nil
 }
 
