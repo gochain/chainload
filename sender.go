@@ -139,7 +139,7 @@ type receivers []common.Address
 
 func (r receivers) MarshalLogArray(oe zapcore.ArrayEncoder) error {
 	for i := range r {
-		oe.AppendString(r[i].Str())
+		oe.AppendString(r[i].Hex())
 	}
 	return nil
 }

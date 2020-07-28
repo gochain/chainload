@@ -61,7 +61,10 @@ func (config *Config) NewChainload(lgr *zap.Logger) (*Chainload, error) {
 		config.Senders = config.TPS
 	}
 
+	lgr.Info("Opening keystore...")
+	start := time.Now()
 	as := NewAccountStore(keystore.NewPlaintextKeyStore("keystore"), new(big.Int).SetUint64(config.Id), config.Password)
+	lgr.Info("Keystore opened", zap.Duration("duration", time.Since(start)))
 	urls := strings.Split(config.UrlsCSV, ",")
 
 	var nodes []*Node
@@ -101,7 +104,8 @@ func (c *Chainload) Run() error {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		for range sigCh {
+		for sig := range sigCh {
+			c.lgr.Info("Signal received. Stopping...", zap.String("signal", sig.String()))
 			cancelFn()
 		}
 	}()

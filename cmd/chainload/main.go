@@ -89,10 +89,10 @@ func main() {
 		lgr.Info("ListenAndServe stopped")
 	}()
 
-	lgr.Info("Staring Chainload", zap.String("version", version), zap.Object("config", &config))
+	lgr.Info("Starting", zap.String("version", version), zap.Object("config", &config))
 	err = cl.Run()
 	if err != nil {
 		lgr.Fatal("Fatal error", zap.Error(err), zap.Duration("runtime", time.Since(start)))
 	}
-	lgr.Info("Shutting down", zap.Duration("runtime", time.Since(start)))
+	lgr.Info("Stopped", zap.Duration("runtime", time.Since(start)))
 }
