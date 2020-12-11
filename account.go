@@ -64,18 +64,19 @@ func (a *AccountStore) NextRecv(send common.Address, n int) []common.Address {
 
 func (a *AccountStore) Next(ctx context.Context, node int) (acct *accounts.Account, nonce uint64, err error) {
 	a.acctsMu.Lock()
-	defer a.acctsMu.Unlock()
 	if len(a.pools) > 0 && rand.Intn(2) == 0 {
 		pool := a.pools[node]
 		if pool != nil {
 			for addr, an := range pool {
 				delete(pool, addr)
+				a.acctsMu.Unlock()
 				return an.Account, an.nonce, nil
 			}
 		}
 	}
 
 	acct = a.nextAcct()
+	a.acctsMu.Unlock()
 	if acct == nil {
 		return
 	}
@@ -118,12 +119,14 @@ func (a *AccountStore) RandSeed() *common.Address {
 // NextSeed returns the next available account from the keystore.
 func (a *AccountStore) NextSeed() (*accounts.Account, error) {
 	a.acctsMu.Lock()
-	defer a.acctsMu.Unlock()
 	acct := a.nextAcct()
+	if acct != nil {
+		a.seeds[acct.Address] = struct{}{}
+	}
+	a.acctsMu.Unlock()
 	if acct == nil {
 		return nil, nil
 	}
-	a.seeds[acct.Address] = struct{}{}
 	return acct, a.ks.Unlock(*acct, a.pass)
 }
 
