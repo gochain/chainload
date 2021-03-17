@@ -70,7 +70,6 @@ func (a *AccountStore) Next(ctx context.Context, node int) (acct *accounts.Accou
 		if pool != nil {
 			for addr, an := range pool {
 				delete(pool, addr)
-				a.acctsMu.Unlock()
 				return an.Account, an.nonce, nil
 			}
 		}
