@@ -64,6 +64,7 @@ func (a *AccountStore) NextRecv(send common.Address, n int) []common.Address {
 
 func (a *AccountStore) Next(ctx context.Context, node int) (acct *accounts.Account, nonce uint64, err error) {
 	a.acctsMu.Lock()
+	defer a.acctsMu.Unlock()
 	if len(a.pools) > 0 && rand.Intn(2) == 0 {
 		pool := a.pools[node]
 		if pool != nil {
@@ -76,7 +77,6 @@ func (a *AccountStore) Next(ctx context.Context, node int) (acct *accounts.Accou
 	}
 
 	acct = a.nextAcct()
-	a.acctsMu.Unlock()
 	if acct == nil {
 		return
 	}
