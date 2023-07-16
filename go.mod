@@ -12,6 +12,5 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20180406234716-d932a24a8ccb
 	go.uber.org/multierr v1.2.0 // indirect
 	go.uber.org/zap v1.11.0
-	golang.org/x/crypto v0.0.0-20200128174031-69ecbb4d6d5d // indirect
-	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e // indirect
+	golang.org/x/crypto v0.1.0 // indirect
 )
